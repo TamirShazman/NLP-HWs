@@ -47,18 +47,26 @@ class FeatureStatistics:
                     self.tags_counts[cur_tag] += 1
                     self.words_count[cur_word] += 1
 
-                    # f100 - all pairs of words and tags
-                    f.f100(self.feature_rep_dict["f100"], cur_word, cur_tag)
+                    # f100 - add pairs of current word and current tag
+                    f.f100_6_7(self.feature_rep_dict["f100"], word=cur_word, current_tag=cur_tag)
 
                     # f101 - all suffixes and their current tag
                     f.f101(self.feature_rep_dict["f101"], cur_word, cur_tag)
                     # f102 - all prefixes and their current tag
                     f.f102(self.feature_rep_dict["f101"], cur_word, cur_tag)
 
+                    # f103-f105 - add triplets, duos and singles of label sequences
                     f.f103_5(self.feature_rep_dict["f103"], self.feature_rep_dict["f104"], self.feature_rep_dict["f105"],
                              cur_tag, previous_tag, previous2_tag)
 
-                    f.f106(self.feature_rep_dict["f106"], previous_word, cur_tag)
+                    # f106 - add pairs of previous word and current tag
+                    f.f100_6_7(self.feature_rep_dict["f100"], word=previous_word, current_tag=cur_tag)
+
+                    # f107 - add paris of next word and current tag
+                    if word_idx == len(split_words) -1:
+                        continue
+                    else:
+                        f.f100_6_7(self.feature_rep_dict["f107"], word=split_words[word_idx + 1].split('_')[0], current_tag=cur_tag)
 
                     previous_tag = cur_tag
                     previous2_tag = previous_tag

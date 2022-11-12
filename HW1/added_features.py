@@ -1,9 +1,9 @@
-def f100(feature_dict, current_word, current_tag):
-    # add pairs of current word and current tag
-    if (current_word, current_tag) not in feature_dict:
-        feature_dict[(current_word, current_tag)] = 1
+def f100_6_7(feature_dict, word, current_tag):
+    # add pairs of word and current tag
+    if (word, current_tag) not in feature_dict:
+        feature_dict[(word, current_tag)] = 1
     else:
-        feature_dict[(current_word, current_tag)] += 1
+        feature_dict[(word, current_tag)] += 1
 
 def f101(feature_dict, current_word, current_tag):
     # add suffixes up to a length of 4
@@ -52,10 +52,3 @@ def f103_5(feature_dict_103, feature_dict_104, feature_dict_105, tag_i, tag_i_1,
     else:
         feature_dict_105[tag_i] += 1
 
-
-def f106(feature_dict, previous_word, current_tag):
-    # add pairs of previous word and current tag
-    if (previous_word, current_tag) not in feature_dict:
-        feature_dict[(previous_word, current_tag)] = 1
-    else:
-        feature_dict[(previous_word, current_tag)] += 1
