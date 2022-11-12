@@ -23,11 +23,11 @@ def memm_viterbi(sentence, pre_trained_weights, feature2id, beam=3):
         u_v_val_dict = {}
         u_t_val_dict = {}
 
-        for x, v in enumerate(all_tags):
+        for v in all_tags:
 
-            for y, u in enumerate(all_tags):
+            for u in all_tags:
 
-                for z, t in enumerate(all_tags):
+                for t in all_tags:
 
                     # beam search
                     if (t, u) not in pi_dict_arr[i - 2].keys():
@@ -64,14 +64,14 @@ def memm_viterbi(sentence, pre_trained_weights, feature2id, beam=3):
         pi_dict_arr.append(curr_pi_dict)
 
     last_pi_list = [(u, v, p) for (u, v), (p, _) in pi_dict_arr[-1].items()]
-    last_pi_list.sort(key=lambda tup: tup[2], reverse=True)
-    t_1, t_2 = last_pi_list[0][0:2]
-    pred.append(t_1), pred.append(t_2)
+    t_1, t_2 = max(last_pi_list, key=lambda tup: tup[2])[0:2]
+    pred.append(t_2), pred.append(t_1)
     for i in reversed(range(2, len(sentence) - 2)):
         cur_t = pi_dict_arr[i][t_1, t_2][1]
         pred.append(cur_t)
         t_1, t_2 = cur_t, t_1
 
+    pred.reverse()
     return pred
 
 
