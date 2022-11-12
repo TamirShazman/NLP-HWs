@@ -2,7 +2,7 @@ from scipy import sparse
 from collections import OrderedDict, defaultdict
 import numpy as np
 from typing import List, Dict, Tuple
-
+import added_features
 
 WORD = 0
 TAG = 1
@@ -12,8 +12,9 @@ class FeatureStatistics:
     def __init__(self):
         self.n_total_features = 0  # Total number of features accumulated
 
+        # TODO: add other featues
         # Init all features dictionaries
-        feature_dict_list = ["f100"]  # the feature classes used in the code
+        feature_dict_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "numbers", "capital_letters"]  # the feature classes used in the code
         self.feature_rep_dict = {fd: OrderedDict() for fd in feature_dict_list}
         '''
         A dictionary containing the counts of each data regarding a feature class. For example in f100, would contain
@@ -47,6 +48,12 @@ class FeatureStatistics:
                     else:
                         self.feature_rep_dict["f100"][(cur_word, cur_tag)] += 1
 
+                    # f101 - all suffixes and their current tag
+                    f101(self.feature_rep_dict["f101"], cur_word, cur_tag)
+                    # f102 - all prefixes and their current tag
+                    f102(self.feature_rep_dict["f101"], cur_word, cur_tag)
+
+
                 sentence = [("*", "*"), ("*", "*")]
                 for pair in split_words:
                     sentence.append(tuple(pair.split("_")))
@@ -71,6 +78,7 @@ class Feature2id:
 
         self.n_total_features = 0  # Total number of features accumulated
 
+        #TODO: add other features
         # Init all features dictionaries
         self.feature_to_idx = {
             "f100": OrderedDict(),
@@ -141,6 +149,8 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
     # f100
     if (c_word, c_tag) in dict_of_dicts["f100"]:
         features.append(dict_of_dicts["f100"][(c_word, c_tag)])
+
+    # TODO: Add other features
 
     return features
 
