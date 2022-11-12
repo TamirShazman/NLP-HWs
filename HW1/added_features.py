@@ -1,4 +1,12 @@
+def f100(feature_dict, current_word, current_tag):
+    # add pairs of current word and current tag
+    if (current_word, current_tag) not in feature_dict:
+        feature_dict[(current_word, current_tag)] = 1
+    else:
+        feature_dict[(current_word, current_tag)] += 1
+
 def f101(feature_dict, current_word, current_tag):
+    # add suffixes up to a length of 4
     if len(current_word) > 3:
         max_suffix = 4
     else:
@@ -12,6 +20,7 @@ def f101(feature_dict, current_word, current_tag):
 
 
 def f102(feature_dict, current_word, current_tag):
+    # add prefixes up to a length of 4
     if len(current_word) > 3:
         max_prefix = 4
     else:
@@ -22,6 +31,7 @@ def f102(feature_dict, current_word, current_tag):
             feature_dict[(prefix, current_tag)] = 1
         else:
             feature_dict[(prefix, current_tag)] += 1
+
 
 def f103_5(feature_dict_103, feature_dict_104, feature_dict_105, tag_i, tag_i_1, tag_i_2):
     # add triplets of current, previous and penultimate tags
@@ -42,3 +52,10 @@ def f103_5(feature_dict_103, feature_dict_104, feature_dict_105, tag_i, tag_i_1,
     else:
         feature_dict_105[tag_i] += 1
 
+
+def f106(feature_dict, previous_word, current_tag):
+    # add pairs of previous word and current tag
+    if (previous_word, current_tag) not in feature_dict:
+        feature_dict[(previous_word, current_tag)] = 1
+    else:
+        feature_dict[(previous_word, current_tag)] += 1

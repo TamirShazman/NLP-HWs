@@ -39,6 +39,7 @@ class FeatureStatistics:
                 split_words = line.split(' ')
                 previous_tag = "*"
                 previous2_tag = "*"
+                previous_word = "*"
 
                 for word_idx in range(len(split_words)):
                     cur_word, cur_tag = split_words[word_idx].split('_')
@@ -46,10 +47,8 @@ class FeatureStatistics:
                     self.tags_counts[cur_tag] += 1
                     self.words_count[cur_word] += 1
 
-                    if (cur_word, cur_tag) not in self.feature_rep_dict["f100"]:
-                        self.feature_rep_dict["f100"][(cur_word, cur_tag)] = 1
-                    else:
-                        self.feature_rep_dict["f100"][(cur_word, cur_tag)] += 1
+                    # f100 - all pairs of words and tags
+                    f.f100(self.feature_rep_dict["f100"], cur_word, cur_tag)
 
                     # f101 - all suffixes and their current tag
                     f.f101(self.feature_rep_dict["f101"], cur_word, cur_tag)
@@ -59,8 +58,11 @@ class FeatureStatistics:
                     f.f103_5(self.feature_rep_dict["f103"], self.feature_rep_dict["f104"], self.feature_rep_dict["f105"],
                              cur_tag, previous_tag, previous2_tag)
 
+                    f.f106(self.feature_rep_dict["f106"], previous_word, cur_tag)
+
                     previous_tag = cur_tag
                     previous2_tag = previous_tag
+                    previous_word = cur_word
 
 
 
