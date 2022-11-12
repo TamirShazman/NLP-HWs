@@ -20,44 +20,47 @@ def memm_viterbi(sentence, pre_trained_weights, feature2id, beam=3):
 
     for i in range(2, len(sentence) - 1):
 
-        # array that contain the pi_matrix as follow (u, v, max probability, max arg)
-        curr_pi_list = []
+        u_v_val_dict = {}
+        u_t_val_dict = {}
 
-        for (u, v) in zip(all_tags, all_tags):
+        for x, v in enumerate(all_tags):
 
-            all_t_values = []
+            for y, u in enumerate(all_tags):
 
-            for t in all_tags:
+                for z, t in enumerate(all_tags):
 
-                # create history
-                history = (sentence[i], v, sentence[i - 1], u, sentence[i - 2], t, sentence[i + 1])
+                    # beam search
+                    if (t, u) not in pi_dict_arr[i - 2].keys():
+                        continue
 
-                normalized_value = find_normalized_value(history, all_tags, pre_trained_weights, feature2id)
+                    # create history
+                    history = (sentence[i], v, sentence[i - 1], u, sentence[i - 2], t, sentence[i + 1])
+                    v_u_t_val = pred_hist(history, pre_trained_weights, feature2id)
 
-                # beam search
-                if (t, v) not in pi_dict_arr[i - 2].keys():
-                    continue
+                    if (u, v) not in u_v_val_dict.keys():
+                        u_v_val_dict[u, v] = [(v_u_t_val, t)]
+                    else:
+                        u_v_val_dict[u, v].append((v_u_t_val, t))
 
-                # calculate not normalized probability
-                prob = pred_hist(history, pre_trained_weights, feature2id) / normalized_value
+                    if (t, u) not in u_t_val_dict.keys():
+                        u_t_val_dict[t, u] = v_u_t_val
+                    else:
+                        u_t_val_dict[t, u] += v_u_t_val
 
-                # insert value pi_value * probability
-                all_t_values.append((pi_dict_arr[i - 2][t, v][0] * prob, t))
+        curr_pi_array = []
 
-            # find max, the length can be zero because of the beam search
-            if len(all_t_values) > 0:
-                all_t_values.sort(key=lambda tup: tup[0], reverse=True)
-                max_p, max_t = all_t_values[0]
-
-                curr_pi_list.append((u, v, max_p, max_t))
+        for (u, v), val_t_array in u_v_val_dict.items():
+            arr_val = [((val / u_t_val_dict[t, u]) * pi_dict_arr[i - 2][t, u][0], t) for val, t in val_t_array]
+            max_p, max_t = max(arr_val, key=lambda tup: tup[0])
+            curr_pi_array.append((u, v, max_p, max_t))
 
         # beam search
         if beam is not None:
-            curr_pi_list.sort(key=lambda tup: tup[2], reverse=True)
-            curr_pi_list = curr_pi_list[: beam]
+            curr_pi_array.sort(key=lambda tup: tup[2], reverse=True)
+            curr_pi_array = curr_pi_array[: beam]
 
         # convert to dict
-        curr_pi_dict = {(u, v): (max_p, max_t) for (u, v, max_p, max_t) in curr_pi_list}
+        curr_pi_dict = {(u, v): (max_p, max_t) for (u, v, max_p, max_t) in curr_pi_array}
         pi_dict_arr.append(curr_pi_dict)
 
     last_pi_list = [(u, v, p) for (u, v), (p, _) in pi_dict_arr[-1].items()]
