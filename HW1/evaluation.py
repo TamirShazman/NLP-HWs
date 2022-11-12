@@ -1,6 +1,7 @@
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay,accuracy_score, recall_score, precision_score, f1_score
 import matplotlib.pyplot as plt
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, train_test_split
+import os
 
 import pickle
 from preprocessing import preprocess_train
@@ -82,13 +83,25 @@ def test():
     print(get_accuracy(ground_truth, predicted))
     show_confusion_matrix(ground_truth, predicted, precision_score)
 
-def cross_validation(file_path):
+def cross_validation(file_path, return_all=True):
+    """
+    Performs cross validation on a given data set
+    return all can be used in order to retrieve the feature2id needed for inference of the best performing fold
+    @param file_path:
+    @param return_all:
+    @return:
+    """
+    isExist = os.path.exists('temp')
+    if not isExist:
+        # Create a new directory because it does not exist
+        os.makedirs('temp')
     threshold = 1
     lam = 1
-    fold_train_path = 'fold_train.wtag'
-    fold_weight_path = 'fold_weight.wtag'
-    fold_test_path = 'fold_test.wtag'
-    fold_prediction_path = 'fold_prediction.wtag'
+    splits = 4
+    fold_train_path = 'temp/fold_train.wtag'
+    fold_weight_path = 'temp/fold_weight.wtag'
+    fold_test_path = 'temp/fold_test.wtag'
+    fold_prediction_path = 'temp/fold_prediction.wtag'
 
     dataset = list()
     with open(file_path) as file:
@@ -98,9 +111,13 @@ def cross_validation(file_path):
                 dataset.append(line)
 
     # sentences, sentence_labels = get_sentences_labels(file_path)
-    kf = KFold(n_splits=4, random_state=None, shuffle=True)
+    kf = KFold(n_splits=splits, random_state=None, shuffle=True)
     cv_results = list()
-    for train_index, test_index in kf.split(dataset):
+    if return_all == True:
+        max_value = 0
+        return_feature_2id = None
+
+    for iter, (train_index, test_index) in enumerate(kf.split(dataset)):
         train_dataset = [dataset[i] for i in train_index]
         test_dataset = [dataset[i] for i in test_index]
         with open(fold_train_path, mode='wt') as myfile:
@@ -109,29 +126,75 @@ def cross_validation(file_path):
             myfile.write('\n'.join(test_dataset))
 
         statistics, feature2id = preprocess_train(fold_train_path, threshold)
-        get_optimal_vector(statistics=statistics, feature2id=feature2id, weights_path=fold_weight_path, lam=lam)
+        numbered_fold_weight_path = fold_weight_path[:-5] + str(iter) + fold_weight_path[-5:]
+        get_optimal_vector(statistics=statistics, feature2id=feature2id, weights_path=numbered_fold_weight_path, lam=lam)
 
         with open(fold_weight_path, 'rb') as f:
             optimal_params, feature2id = pickle.load(f)
 
-        tag_all_test(fold_test_path, pre_trained_weights, feature2id, fold_prediction_path)
         pre_trained_weights = optimal_params[0]
+        tag_all_test(fold_test_path, pre_trained_weights, feature2id, fold_prediction_path)
 
         ground_truth, predicted = get_ground_and_predicted(fold_test_path, fold_prediction_path)
 
-        cv_results.append(get_accuracy(ground_truth, predicted))
+        curr_accuracy = get_accuracy(ground_truth, predicted)
+        if curr_accuracy > max_value:
+            max_value = curr_accuracy
+            return_feature_2id = feature2id
+        cv_results.append(curr_accuracy)
 
     print("Threshold", threshold)
     print("Lam", lam)
     print("CV results:")
     print(cv_results)
+    index = cv_results.index(max_value)
+    print("Best performance by fold {} with {} accuracy".format(index, max_value))
     cv_avg = sum(cv_results) / len(cv_results)
     print("Avg. of CV results", cv_avg)
+
+    if return_all==True:
+        return fold_weight_path[:-5] + str(index) + fold_weight_path[-5:], return_feature_2id
+    else:
+        return fold_weight_path[:-5] + str(index) + fold_weight_path[-5:]
+
+def ssl(labeled_path, unlabeled_path):
+    isExist = os.path.exists('temp')
+    if not isExist:
+        # Create a new directory because it does not exist
+        os.makedirs('temp')
+    top_n = 10
+    iter = 5
+    weak_label_path = 'temp/weak_label.wtag'
+    test_labeled_path = 'temp/test_labeled.wtag'
+    comp2_path = "data/comp2.words"
+    prediction_path = 'temp/comp_m2_337977045_316250877.wtag'
+
+
+    # set aside objective truth and training set
+    dataset = list()
+    with open(labeled_path) as file:
+        for line in file:
+            if line[-1:] == "\n":
+                line = line[:-1]
+                dataset.append(line)
+    train_index, test_index = train_test_split(dataset)
+    train_dataset = [dataset[i] for i in train_index]
+    test_dataset = [dataset[i] for i in test_index]
+    with open(weak_label_path, mode='wt') as myfile:
+        myfile.write('\n'.join(train_dataset))
+    with open(test_labeled_path, mode='wt') as myfile:
+        myfile.write('\n'.join(test_dataset))
+
+    for i in range(iter):
+        current_weights, feature2id = cross_validation(weak_label_path, True)
+
+    tag_all_test(comp2_path, current_weights, feature2id, predictions_path)
+
 
 
 
 if __name__ == '__main__':
-    test()
+    cross_validation('C:\\Users\\dovid\\PycharmProjects\\NLP\\NLP-HWs\\HW1\\data\\train2.wtag')
 
 
 
