@@ -8,7 +8,7 @@ def f100_6_7(feature_dict, word, current_tag):
 def add_f100_6_7(feature_list, feature_dict, word, current_tag):
     # add pairs of word and current tag
     if (word, current_tag) in feature_dict:
-        feature_list.append(feature_dict[word, current_tag])
+        feature_list.append(feature_dict[(word, current_tag)])
 
 def f101(feature_dict, current_word, current_tag):
     # add suffixes up to a length of 4
@@ -60,6 +60,7 @@ def add_f102(feature_list, feature_dict, current_word, current_tag):
 
 
 def f103_5(feature_dict_103, feature_dict_104, feature_dict_105, tag_i, tag_i_1, tag_i_2):
+    # CONTEXT FEATURES
     # add triplets of current, previous and penultimate tags
     if (tag_i, tag_i_1, tag_i_2) not in feature_dict_103:
         feature_dict_103[(tag_i, tag_i_1, tag_i_2)] = 1

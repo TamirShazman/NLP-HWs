@@ -64,7 +64,7 @@ class FeatureStatistics:
                     # f106 - add pairs of previous word and current tag
                     f.f100_6_7(self.feature_rep_dict["f106"], word=previous_word, current_tag=cur_tag)
 
-                    # f107 - add paris of next word and current tag
+                    # f107 - add pairs of next word and current tag
                     if word_idx == len(split_words) - 1: # skip last word because no next word
                         continue
                     else:
