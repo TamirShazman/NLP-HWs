@@ -14,7 +14,7 @@ class FeatureStatistics:
 
         # TODO: add other featues
         # Init all features dictionaries
-        feature_dict_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "numbers", "capital_letters"]  # the feature classes used in the code
+        self.feature_dict_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "numbers", "capital_letters"]  # the feature classes used in the code
         self.feature_rep_dict = {fd: OrderedDict() for fd in feature_dict_list}
         '''
         A dictionary containing the counts of each data regarding a feature class. For example in f100, would contain
@@ -68,6 +68,12 @@ class FeatureStatistics:
                     else:
                         f.f100_6_7(self.feature_rep_dict["f107"], word=split_words[word_idx + 1].split('_')[0], current_tag=cur_tag)
 
+                    # contains number
+                    f.contains_number(self.feature_rep_dict["numbers"], cur_word, cur_tag)
+
+                    # contains capital letter
+                    f.contains_number(self.feature_rep_dict["capital_letters"], cur_word, cur_tag)
+
                     previous_tag = cur_tag
                     previous2_tag = previous_tag
                     previous_word = cur_word
@@ -98,9 +104,11 @@ class Feature2id:
 
         #TODO: add other features
         # Init all features dictionaries
-        self.feature_to_idx = {
-            "f100": OrderedDict(),
-        }
+        # ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "numbers", "capital_letters"]
+        self.feature_to_idx = {fd: OrderedDict() for fd in feature_statistics.feature_rep_dict}
+        # self.feature_to_idx = {
+        #     "f100": OrderedDict(),
+        # }
         self.represent_input_with_features = OrderedDict()
         self.histories_matrix = OrderedDict()
         self.histories_features = OrderedDict()
@@ -163,12 +171,14 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
     c_word = history[0]
     c_tag = history[1]
     features = []
+    # TODO: Add other features
 
     # f100
     if (c_word, c_tag) in dict_of_dicts["f100"]:
         features.append(dict_of_dicts["f100"][(c_word, c_tag)])
 
-    # TODO: Add other features
+
+
 
     return features
 
