@@ -56,7 +56,8 @@ class FeatureStatistics:
                     # f102 - all prefixes and their current tag
                     f.f102(self.feature_rep_dict["f101"], cur_word, cur_tag)
 
-
+                    f.f103_5(self.feature_rep_dict["f103"], self.feature_rep_dict["f104"], self.feature_rep_dict["f105"],
+                             cur_tag, previous_tag, previous2_tag)
 
                     previous_tag = cur_tag
                     previous2_tag = previous_tag
