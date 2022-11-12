@@ -121,9 +121,14 @@ def cross_validation(file_path):
 
         cv_results.append(get_accuracy(ground_truth, predicted))
 
+    print("Threshold", threshold)
+    print("Lam", lam)
+    print("CV results:")
     print(cv_results)
-    cv_avg = sum(cv_results / len(cv_results)
-    print(cv_avg)
+    cv_avg = sum(cv_results) / len(cv_results)
+    print("Avg. of CV results", cv_avg)
+
+
 
 if __name__ == '__main__':
     test()
