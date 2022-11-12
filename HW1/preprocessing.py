@@ -3,6 +3,7 @@ from collections import OrderedDict, defaultdict
 import numpy as np
 from typing import List, Dict, Tuple
 import added_features as f
+from copy import deepcopy
 
 WORD = 0
 TAG = 1
@@ -15,7 +16,7 @@ class FeatureStatistics:
         # TODO: add other featues
         # Init all features dictionaries
         self.feature_dict_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "numbers", "capital_letters"]  # the feature classes used in the code
-        self.feature_rep_dict = {fd: OrderedDict() for fd in feature_dict_list}
+        self.feature_rep_dict = {fd: OrderedDict() for fd in self.feature_dict_list}
         '''
         A dictionary containing the counts of each data regarding a feature class. For example in f100, would contain
         the number of times each (word, tag) pair appeared in the text.
@@ -43,17 +44,18 @@ class FeatureStatistics:
 
                 for word_idx in range(len(split_words)):
                     cur_word, cur_tag = split_words[word_idx].split('_')
+                    lowercase_cur_word = cur_word.lower() # use lower case for f100-f107 to limit feature set size
                     self.tags.add(cur_tag)
                     self.tags_counts[cur_tag] += 1
                     self.words_count[cur_word] += 1
 
                     # f100 - add pairs of current word and current tag
-                    f.f100_6_7(self.feature_rep_dict["f100"], word=cur_word, current_tag=cur_tag)
+                    f.f100_6_7(self.feature_rep_dict["f100"], word=lowercase_cur_word, current_tag=cur_tag)
 
                     # f101 - all suffixes and their current tag
-                    f.f101(self.feature_rep_dict["f101"], cur_word, cur_tag)
+                    f.f101(self.feature_rep_dict["f101"], lowercase_cur_word, cur_tag)
                     # f102 - all prefixes and their current tag
-                    f.f102(self.feature_rep_dict["f102"], cur_word, cur_tag)
+                    f.f102(self.feature_rep_dict["f102"], lowercase_cur_word, cur_tag)
 
                     # f103-f105 - add triplets, duos and singles of label sequences
                     f.f103_5(self.feature_rep_dict["f103"], self.feature_rep_dict["f104"], self.feature_rep_dict["f105"],
@@ -66,17 +68,17 @@ class FeatureStatistics:
                     if word_idx == len(split_words) - 1: # skip last word because no next word
                         continue
                     else:
-                        f.f100_6_7(self.feature_rep_dict["f107"], word=split_words[word_idx + 1].split('_')[0], current_tag=cur_tag)
+                        f.f100_6_7(self.feature_rep_dict["f107"], word=split_words[word_idx + 1].split('_')[0].lower(), current_tag=cur_tag)
 
                     # contains number
                     f.contains_number(self.feature_rep_dict["numbers"], cur_word, cur_tag)
 
                     # contains capital letter
-                    f.contains_number(self.feature_rep_dict["capital_letters"], cur_word, cur_tag)
+                    f.contains_uppercase(self.feature_rep_dict["capital_letters"], cur_word, cur_tag)
 
-                    previous_tag = cur_tag
                     previous2_tag = previous_tag
-                    previous_word = cur_word
+                    previous_tag = cur_tag
+                    previous_word = lowercase_cur_word
 
                 sentence = [("*", "*"), ("*", "*")]
                 for pair in split_words:
@@ -168,17 +170,45 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
         @param dict_of_dicts: a dictionary of each feature and the index it was given
         @return a list with all features that are relevant to the given history
     """
-    c_word = history[0]
-    c_tag = history[1]
+    c_word, c_tag, p_word, p_tag, pp_word, pp_tag, n_word = history
+    uppercase_c_word = deepcopy(c_word)
+    c_word = c_word.lower()
+    p_word = p_word.lower()
+    n_word = n_word.lower()
+    pp_word = pp_word.lower()
+
+    # c_word = history[0]
+    # c_tag = history[1]
     features = []
     # TODO: Add other features
 
+    # # f100
+    # if (c_word, c_tag) in dict_of_dicts["f100"]:
+    #     features.append(dict_of_dicts["f100"][(c_word, c_tag)])
+
     # f100
-    if (c_word, c_tag) in dict_of_dicts["f100"]:
-        features.append(dict_of_dicts["f100"][(c_word, c_tag)])
+    f.add_f100_6_7(features, dict_of_dicts["f100"], c_word, c_tag)
 
+    # f101
+    f.add_f101(features, dict_of_dicts["f101"], c_word, c_tag)
 
+    # f102
+    f.add_f102(features, dict_of_dicts["f102"], c_word, c_tag)
 
+    # f103-5
+    f.add_f103_5(features, dict_of_dicts["f103"], dict_of_dicts["f104"], dict_of_dicts["f105"], c_tag, p_tag, pp_tag)
+
+    # f106
+    f.add_f100_6_7(features, dict_of_dicts["f106"], p_word, c_tag)
+
+    # f107
+    f.add_f100_6_7(features, dict_of_dicts["f107"], n_word, c_tag)
+
+    # contains number
+    f.add_contains_number(features, dict_of_dicts["numbers"], c_word, c_tag)
+
+    # contains uppercase
+    f.add_contains_uppercase(features, dict_of_dicts["capital_letters"], uppercase_c_word, c_tag)
 
     return features
 
