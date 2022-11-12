@@ -106,16 +106,22 @@ def add_contains_number(feature_list, feature_dict, current_word, current_tag):
         if current_tag in feature_dict:
             feature_list.append(feature_dict[current_tag])
 
-def contains_uppercase(feature_dict, current_word, current_tag):
+def contains_uppercase(feature_dict, previous_word, current_word, current_tag):
     # adds count if current tag is for a word with an upper case letter in it
+    if previous_word == "*":
+        return
+
     if any(char.isupper() for char in current_word):
         if current_tag not in feature_dict:
             feature_dict[current_tag] = 1
         else:
             feature_dict[current_tag] += 1
 
-def add_contains_uppercase(feature_list, feature_dict, current_word, current_tag):
-    # adds count if current tag is for a word with a number in it
+def add_contains_uppercase(feature_list, feature_dict, previous_word, current_word, current_tag):
+    # adds count if current tag is for a word with a capitalized letter in it that is not the beginning of a sentence
+    if previous_word == "*":
+        return
+
     if any(char.isupper() for char in current_word):
         if current_tag in feature_dict:
             feature_list.append(feature_dict[current_tag])

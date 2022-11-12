@@ -73,8 +73,8 @@ class FeatureStatistics:
                     # contains number
                     f.contains_number(self.feature_rep_dict["numbers"], cur_word, cur_tag)
 
-                    # contains capital letter
-                    f.contains_uppercase(self.feature_rep_dict["capital_letters"], cur_word, cur_tag)
+                    # contains capital letter & not beginning of sentence
+                    f.contains_uppercase(self.feature_rep_dict["capital_letters"], previous_word, cur_word, cur_tag)
 
                     previous2_tag = previous_tag
                     previous_tag = cur_tag
@@ -207,8 +207,8 @@ def represent_input_with_features(history: Tuple, dict_of_dicts: Dict[str, Dict[
     # contains number
     f.add_contains_number(features, dict_of_dicts["numbers"], c_word, c_tag)
 
-    # contains uppercase
-    f.add_contains_uppercase(features, dict_of_dicts["capital_letters"], uppercase_c_word, c_tag)
+    # contains uppercase & not beginning of sentence
+    f.add_contains_uppercase(features, dict_of_dicts["capital_letters"], p_word, uppercase_c_word, c_tag)
 
     return features
 
