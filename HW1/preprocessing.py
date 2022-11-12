@@ -2,7 +2,7 @@ from scipy import sparse
 from collections import OrderedDict, defaultdict
 import numpy as np
 from typing import List, Dict, Tuple
-import added_features
+import added_features as f
 
 WORD = 0
 TAG = 1
@@ -37,6 +37,9 @@ class FeatureStatistics:
                 if line[-1:] == "\n":
                     line = line[:-1]
                 split_words = line.split(' ')
+                previous_tag = "*"
+                previous2_tag = "*"
+
                 for word_idx in range(len(split_words)):
                     cur_word, cur_tag = split_words[word_idx].split('_')
                     self.tags.add(cur_tag)
@@ -49,9 +52,16 @@ class FeatureStatistics:
                         self.feature_rep_dict["f100"][(cur_word, cur_tag)] += 1
 
                     # f101 - all suffixes and their current tag
-                    f101(self.feature_rep_dict["f101"], cur_word, cur_tag)
+                    f.f101(self.feature_rep_dict["f101"], cur_word, cur_tag)
                     # f102 - all prefixes and their current tag
-                    f102(self.feature_rep_dict["f101"], cur_word, cur_tag)
+                    f.f102(self.feature_rep_dict["f101"], cur_word, cur_tag)
+
+
+
+                    previous_tag = cur_tag
+                    previous2_tag = previous_tag
+
+
 
 
                 sentence = [("*", "*"), ("*", "*")]
