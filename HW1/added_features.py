@@ -52,3 +52,18 @@ def f103_5(feature_dict_103, feature_dict_104, feature_dict_105, tag_i, tag_i_1,
     else:
         feature_dict_105[tag_i] += 1
 
+def contains_number(feature_dict, current_word, current_tag):
+    # adds count if current tag is for a word with a number in it
+    if any(char.isdigit() for char in current_word):
+        if current_tag not in feature_dict:
+            feature_dict[current_tag] = 1
+        else:
+            feature_dict[current_tag] += 1
+
+def contains_uppercase(feature_dict, current_word, current_tag):
+    # adds count if current tag is for a word with an upper case letter in it
+    if any(char.isupper() for char in current_word):
+        if current_tag not in feature_dict:
+            feature_dict[current_tag] = 1
+        else:
+            feature_dict[current_tag] += 1

@@ -53,7 +53,7 @@ class FeatureStatistics:
                     # f101 - all suffixes and their current tag
                     f.f101(self.feature_rep_dict["f101"], cur_word, cur_tag)
                     # f102 - all prefixes and their current tag
-                    f.f102(self.feature_rep_dict["f101"], cur_word, cur_tag)
+                    f.f102(self.feature_rep_dict["f102"], cur_word, cur_tag)
 
                     # f103-f105 - add triplets, duos and singles of label sequences
                     f.f103_5(self.feature_rep_dict["f103"], self.feature_rep_dict["f104"], self.feature_rep_dict["f105"],
@@ -63,7 +63,7 @@ class FeatureStatistics:
                     f.f100_6_7(self.feature_rep_dict["f106"], word=previous_word, current_tag=cur_tag)
 
                     # f107 - add paris of next word and current tag
-                    if word_idx == len(split_words) -1:
+                    if word_idx == len(split_words) - 1: # skip last word because no next word
                         continue
                     else:
                         f.f100_6_7(self.feature_rep_dict["f107"], word=split_words[word_idx + 1].split('_')[0], current_tag=cur_tag)
@@ -71,9 +71,6 @@ class FeatureStatistics:
                     previous_tag = cur_tag
                     previous2_tag = previous_tag
                     previous_word = cur_word
-
-
-
 
                 sentence = [("*", "*"), ("*", "*")]
                 for pair in split_words:
