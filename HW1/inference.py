@@ -88,6 +88,52 @@ def pred_hist(history, weights, feature2id):
     return np.exp(features_vec @ weights)
 
 
+def find_history_prob(history, weights, feature2id):
+    """
+    :param history: {c_word, c_tag, p_word, p_tag, pp_word, pp_tag, n_word}
+    :param weights: pre-trained weights
+    :param feature2id: list of all the tags
+    :return: the probability of the history
+    """
+    c_word, c_tag, p_word, p_tag, pp_word, pp_tag, n_word = history
+    norm_sum = sum([pred_hist((c_word, t, p_word, p_tag, pp_word, pp_tag, n_word), weights, feature2id)
+                    for t in feature2id.feature_statistics.tags])
+    return pred_hist(history, weights, feature2id) / norm_sum
+
+
+def find_sentence_prob(sentence, predictions, weights, feature2id):
+    """
+    :param sentence: list of word : [w-1=*, w0=*, w1, .., wn=~]
+    :param predictions: list of tags : [t1, t2, .. tn]
+    :param weights: optimal weight vector
+    :param feature2id:
+    :return: the probability of the prediction
+    """
+    assert len(sentence) - 3 == len(predictions), "length of sentence is longer then the predictions"
+
+    mul_prob = 1
+
+    for i in range(2, len(sentence) - 1):
+
+        if i == 2:
+            # default tag because the first two words are *
+            default_tag = predictions[i - 2]
+            history = (sentence[i], predictions[i - 2], sentence[i - 1], default_tag,
+                       sentence[i - 2], default_tag, sentence[i + 1])
+        elif i == 3:
+            # default tag because the first two words are *
+            default_tag = predictions[i - 2]
+            history = (sentence[i], predictions[i - 2], sentence[i - 1], predictions[i - 3],
+                       sentence[i - 2], default_tag, sentence[i + 1])
+        else:
+            history = (sentence[i], predictions[i - 2], sentence[i - 1], predictions[i - 3],
+                       sentence[i - 2], predictions[i - 4], sentence[i + 1])
+
+        mul_prob *= find_history_prob(history, weights, feature2id)
+
+    return mul_prob
+
+
 def find_normalized_value(history, tags, weights, feature2id):
     """
     :param feature2id:
@@ -113,6 +159,7 @@ def tag_all_test(test_path, pre_trained_weights, feature2id, predictions_path):
     for k, sen in tqdm(enumerate(test), total=len(test)):
         sentence = sen[0]
         pred = memm_viterbi(sentence, pre_trained_weights, feature2id)[1:]
+        print(f"The probability of the sentence is :{find_sentence_prob(sentence, pred, pre_trained_weights, feature2id)}")
         sentence = sentence[2:]
         for i in range(len(pred)):
             if i > 0:
