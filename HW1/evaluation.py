@@ -8,9 +8,10 @@ from preprocessing import preprocess_train
 from optimization import get_optimal_vector
 from inference import tag_all_test
 
+
 def get_sentences_labels(file_path):
     labels = list()
-    features = list()
+    sentences = list()
     # extract test ground truth
     with open(file_path) as file:
         for line in file:
@@ -24,10 +25,11 @@ def get_sentences_labels(file_path):
                 cur_word, cur_tag = split_words[word_idx].split('_')
                 sentence.append(cur_word)
                 sentence_POS.append(cur_tag)
-            features.append(sentence)
+            sentences.append(sentence)
             labels.append(sentence_POS)
 
-    return features, labels
+    return sentences, labels
+
 
 def get_ground_and_predicted(test_file, prediction_file):
     test_labels = list()
@@ -50,6 +52,7 @@ def get_ground_and_predicted(test_file, prediction_file):
             if line[-1:] == "\n":
                 line = line[:-1]
             split_words = line.split(' ')
+            # TODO: Remove before submitting
             try:
                 for word_idx in range(len(split_words)):
                     _, cur_tag = split_words[word_idx].split('_')
@@ -67,10 +70,11 @@ def get_ground_and_predicted(test_file, prediction_file):
 def get_accuracy(ground_truth, predicted):
     return accuracy_score(ground_truth, predicted)
 
+
 def show_confusion_matrix(ground_truth, predicted, grading_metric):
     labels = list(set(ground_truth))
     scores = grading_metric(ground_truth, predicted, average=None, labels=labels)
-    top_ten_indices = sorted(range(len(scores)), key=lambda i: scores[i])[-10:]
+    top_ten_indices = sorted(range(len(scores)), key=lambda i: scores[i])[:10]
     top_ten_labels = [labels[i] for i in top_ten_indices]
     cm = confusion_matrix(ground_truth, predicted, labels=top_ten_labels)
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels = top_ten_labels)
@@ -83,10 +87,9 @@ def test():
     print(get_accuracy(ground_truth, predicted))
     show_confusion_matrix(ground_truth, predicted, precision_score)
 
-def cross_validation(file_path, return_all=True):
+def cross_validation(file_path):
     """
     Performs cross validation on a given data set
-    return all can be used in order to retrieve the feature2id needed for inference of the best performing fold
     @param file_path:
     @param return_all:
     @return:
@@ -95,7 +98,7 @@ def cross_validation(file_path, return_all=True):
     if not isExist:
         # Create a new directory because it does not exist
         os.makedirs('temp')
-    threshold = 1
+    threshold = 10
     lam = 1
     splits = 4
     fold_train_path = 'temp/fold_train.wtag'
@@ -113,9 +116,6 @@ def cross_validation(file_path, return_all=True):
     # sentences, sentence_labels = get_sentences_labels(file_path)
     kf = KFold(n_splits=splits, random_state=None, shuffle=True)
     cv_results = list()
-    if return_all == True:
-        max_value = 0
-        return_feature_2id = None
 
     for iter, (train_index, test_index) in enumerate(kf.split(dataset)):
         train_dataset = [dataset[i] for i in train_index]
@@ -129,7 +129,7 @@ def cross_validation(file_path, return_all=True):
         numbered_fold_weight_path = fold_weight_path[:-5] + str(iter) + fold_weight_path[-5:]
         get_optimal_vector(statistics=statistics, feature2id=feature2id, weights_path=numbered_fold_weight_path, lam=lam)
 
-        with open(fold_weight_path, 'rb') as f:
+        with open(numbered_fold_weight_path, 'rb') as f:
             optimal_params, feature2id = pickle.load(f)
 
         pre_trained_weights = optimal_params[0]
@@ -138,24 +138,20 @@ def cross_validation(file_path, return_all=True):
         ground_truth, predicted = get_ground_and_predicted(fold_test_path, fold_prediction_path)
 
         curr_accuracy = get_accuracy(ground_truth, predicted)
-        if curr_accuracy > max_value:
-            max_value = curr_accuracy
-            return_feature_2id = feature2id
         cv_results.append(curr_accuracy)
 
     print("Threshold", threshold)
     print("Lam", lam)
     print("CV results:")
     print(cv_results)
+    max_value = max(cv_results)
     index = cv_results.index(max_value)
     print("Best performance by fold {} with {} accuracy".format(index, max_value))
     cv_avg = sum(cv_results) / len(cv_results)
     print("Avg. of CV results", cv_avg)
+    print()
 
-    if return_all==True:
-        return fold_weight_path[:-5] + str(index) + fold_weight_path[-5:], return_feature_2id
-    else:
-        return fold_weight_path[:-5] + str(index) + fold_weight_path[-5:]
+    return fold_weight_path[:-5] + str(index) + fold_weight_path[-5:]
 
 def ssl(labeled_path, unlabeled_path):
     isExist = os.path.exists('temp')
@@ -167,7 +163,7 @@ def ssl(labeled_path, unlabeled_path):
     weak_label_path = 'temp/weak_label.wtag'
     test_labeled_path = 'temp/test_labeled.wtag'
     comp2_path = "data/comp2.words"
-    prediction_path = 'temp/comp_m2_337977045_316250877.wtag'
+    predictions_path = 'temp/comp_m2_337977045_316250877.wtag'
 
 
     # set aside objective truth and training set
@@ -186,16 +182,23 @@ def ssl(labeled_path, unlabeled_path):
         myfile.write('\n'.join(test_dataset))
 
     for i in range(iter):
-        current_weights, feature2id = cross_validation(weak_label_path, True)
+        current_weights_path = cross_validation(weak_label_path)
+        with open(current_weights_path, 'rb') as f:
+            optimal_params, feature2id = pickle.load(f)
 
-    tag_all_test(comp2_path, current_weights, feature2id, predictions_path)
+        tag_all_test(comp2_path, optimal_params, feature2id, predictions_path)
+
+        prediction_scores = list()
+        top_n_indices = sorted(range(len(prediction_scores)), key=lambda i: prediction_scores[i])[-top_n:]
+
+
 
 
 
 
 if __name__ == '__main__':
     cross_validation('C:\\Users\\dovid\\PycharmProjects\\NLP\\NLP-HWs\\HW1\\data\\train2.wtag')
-
+    # test()
 
 
 
