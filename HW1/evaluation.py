@@ -2,6 +2,8 @@ from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay,accuracy_sc
 import matplotlib.pyplot as plt
 from sklearn.model_selection import KFold, train_test_split
 import os
+import shutil
+import numpy as np
 
 import pickle
 from preprocessing import preprocess_train
@@ -81,7 +83,7 @@ def show_confusion_matrix(ground_truth, predicted, grading_metric):
     disp.plot()
     plt.show()
 
-def test():
+def test(ground_truth_path, predicted_path):
     ground_truth, predicted = get_ground_and_predicted("C:\\Users\\dovid\\PycharmProjects\\NLP\\NLP-HWs\\HW1\\data\\test1.wtag",
                                                        'C:\\Users\\dovid\\PycharmProjects\\NLP\\NLP-HWs\\HW1\\predictions.wtag')
     print(get_accuracy(ground_truth, predicted))
@@ -98,9 +100,9 @@ def cross_validation(file_path):
     if not isExist:
         # Create a new directory because it does not exist
         os.makedirs('temp')
-    threshold = 10
+    threshold = 20
     lam = 1
-    splits = 4
+    splits = 2
     fold_train_path = 'temp/fold_train.wtag'
     fold_weight_path = 'temp/fold_weight.wtag'
     fold_test_path = 'temp/fold_test.wtag'
@@ -153,6 +155,30 @@ def cross_validation(file_path):
 
     return fold_weight_path[:-5] + str(index) + fold_weight_path[-5:]
 
+def add_weak_labels(unlabeled_data_path, predicted_path, weak_label_path, to_label_indices):
+    # modify unlabeled data that should be inferred next round
+    unlabeled_dataset = list()
+    with open(unlabeled_data_path) as file:
+        for index, line in enumerate(file):
+            if line[-1:] == "\n":
+                line = line[:-1]
+                if index not in to_label_indices:
+                    unlabeled_dataset.append(line)
+    with open(unlabeled_data_path, mode='wt') as myfile:
+        myfile.write('\n'.join(unlabeled_dataset))
+
+    # add weak labels
+    weak_labeled_dataset = list()
+    with open(predicted_path) as file:
+        for index, line in enumerate(file):
+            if line[-1:] == "\n":
+                line = line[:-1]
+                if index in to_label_indices:
+                    weak_labeled_dataset.append(line)
+    with open(weak_label_path, mode='a') as myfile:
+        myfile.write('\n'.join(weak_labeled_dataset))
+
+
 def ssl(labeled_path, unlabeled_path):
     isExist = os.path.exists('temp')
     if not isExist:
@@ -162,8 +188,9 @@ def ssl(labeled_path, unlabeled_path):
     iter = 5
     weak_label_path = 'temp/weak_label.wtag'
     test_labeled_path = 'temp/test_labeled.wtag'
-    comp2_path = "data/comp2.words"
+    to_be_predicted_path = 'temp/to_be_predicted.words'
     predictions_path = 'temp/comp_m2_337977045_316250877.wtag'
+    final_prediction_path = 'temp/final_test.wtag'
 
 
     # set aside objective truth and training set
@@ -173,30 +200,49 @@ def ssl(labeled_path, unlabeled_path):
             if line[-1:] == "\n":
                 line = line[:-1]
                 dataset.append(line)
-    train_index, test_index = train_test_split(dataset)
-    train_dataset = [dataset[i] for i in train_index]
-    test_dataset = [dataset[i] for i in test_index]
+    train_dataset, test_dataset = train_test_split(dataset)
+    # train_dataset = [dataset[i] for i in train_index]
+    # test_dataset = [dataset[i] for i in test_index]
     with open(weak_label_path, mode='wt') as myfile:
         myfile.write('\n'.join(train_dataset))
     with open(test_labeled_path, mode='wt') as myfile:
         myfile.write('\n'.join(test_dataset))
+    # set aside labels to be predicted
+    shutil.copy2(unlabeled_path, to_be_predicted_path)
 
+    # each iteratin get most confident predictions and use as weak labels
     for i in range(iter):
         current_weights_path = cross_validation(weak_label_path)
-        with open(current_weights_path, 'rb') as f:
-            optimal_params, feature2id = pickle.load(f)
+        if i == iter - 1: # no point in predicting weak labels
+            break
+        else:
+            with open(current_weights_path, 'rb') as f:
+                optimal_params, feature2id = pickle.load(f)
 
-        tag_all_test(comp2_path, optimal_params, feature2id, predictions_path)
+            tag_all_test(to_be_predicted_path, optimal_params, feature2id, predictions_path)
+            #TODO: get predictions somehow
+            # prediction_scores = np.random.uniform(size=100)
+            # top_n_indices = sorted(range(len(prediction_scores)), key=lambda i: prediction_scores[i])[-top_n:]
+            threshold = 0.9
+            top_indices = [index for index, score in zip(range(len(prediction_scores)), prediction_scores) if score >= threshold]
+            if len(top_indices) < 5:
+                break
+            else:
+                print("Adding {} weak labels".format(len(top_indices)))
+                add_weak_labels(to_be_predicted_path, predictions_path, weak_label_path, top_indices)
 
-        prediction_scores = list()
-        top_n_indices = sorted(range(len(prediction_scores)), key=lambda i: prediction_scores[i])[-top_n:]
-
-
+    # evaluate ssl model
+    with open(current_weights_path, 'rb') as f:
+        optimal_params, feature2id = pickle.load(f)
+    tag_all_test(test_labeled_path, optimal_params, feature2id, predictions_path)
+    print("FINAL RESULTS ON TEST SET:")
+    test(test_labeled_path, predictions_path)
 
 
 
 
 if __name__ == '__main__':
+    ssl('data/train2.wtag', 'data/comp2.words')
     cross_validation('C:\\Users\\dovid\\PycharmProjects\\NLP\\NLP-HWs\\HW1\\data\\train2.wtag')
     # test()
 
