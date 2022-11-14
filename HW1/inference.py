@@ -150,7 +150,7 @@ def find_normalized_value(history, tags, weights, feature2id):
     return exp_sum
 
 
-def tag_all_test(test_path, pre_trained_weights, feature2id, predictions_path):
+def tag_all_test(test_path, pre_trained_weights, feature2id, predictions_path, sentence_probabilities_list=None):
     tagged = "test" in test_path
     test = read_test(test_path, tagged=tagged)
 
@@ -159,7 +159,9 @@ def tag_all_test(test_path, pre_trained_weights, feature2id, predictions_path):
     for k, sen in tqdm(enumerate(test), total=len(test)):
         sentence = sen[0]
         pred = memm_viterbi(sentence, pre_trained_weights, feature2id)[1:]
-        print(f"The probability of the sentence is :{find_sentence_prob(sentence, pred, pre_trained_weights, feature2id)}")
+        if sentence_probabilities_list != None:
+            sentence_probabilities_list.append(find_sentence_prob(sentence, pred, pre_trained_weights, feature2id))
+            # print(f"The probability of the sentence is :{find_sentence_prob(sentence, pred, pre_trained_weights, feature2id)}")
         sentence = sentence[2:]
         for i in range(len(pred)):
             if i > 0:

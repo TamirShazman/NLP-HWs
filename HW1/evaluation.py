@@ -100,7 +100,7 @@ def cross_validation(file_path):
     if not isExist:
         # Create a new directory because it does not exist
         os.makedirs('temp')
-    threshold = 20
+    threshold = 10
     lam = 1
     splits = 2
     fold_train_path = 'temp/fold_train.wtag'
@@ -135,6 +135,7 @@ def cross_validation(file_path):
             optimal_params, feature2id = pickle.load(f)
 
         pre_trained_weights = optimal_params[0]
+
         tag_all_test(fold_test_path, pre_trained_weights, feature2id, fold_prediction_path)
 
         ground_truth, predicted = get_ground_and_predicted(fold_test_path, fold_prediction_path)
@@ -176,6 +177,7 @@ def add_weak_labels(unlabeled_data_path, predicted_path, weak_label_path, to_lab
                 if index in to_label_indices:
                     weak_labeled_dataset.append(line)
     with open(weak_label_path, mode='a') as myfile:
+        myfile.write('\n') # hopefully this should solve the problem
         myfile.write('\n'.join(weak_labeled_dataset))
 
 
@@ -185,7 +187,7 @@ def ssl(labeled_path, unlabeled_path):
         # Create a new directory because it does not exist
         os.makedirs('temp')
     top_n = 10
-    iter = 5
+    iter = 2
     weak_label_path = 'temp/weak_label.wtag'
     test_labeled_path = 'temp/test_labeled.wtag'
     to_be_predicted_path = 'temp/to_be_predicted.words'
@@ -212,6 +214,7 @@ def ssl(labeled_path, unlabeled_path):
 
     # each iteratin get most confident predictions and use as weak labels
     for i in range(iter):
+        probability_scores = list()
         current_weights_path = cross_validation(weak_label_path)
         if i == iter - 1: # no point in predicting weak labels
             break
@@ -219,12 +222,12 @@ def ssl(labeled_path, unlabeled_path):
             with open(current_weights_path, 'rb') as f:
                 optimal_params, feature2id = pickle.load(f)
 
-            tag_all_test(to_be_predicted_path, optimal_params, feature2id, predictions_path)
+            tag_all_test(to_be_predicted_path, optimal_params[0], feature2id, predictions_path, probability_scores)
             #TODO: get predictions somehow
             # prediction_scores = np.random.uniform(size=100)
             # top_n_indices = sorted(range(len(prediction_scores)), key=lambda i: prediction_scores[i])[-top_n:]
-            threshold = 0.9
-            top_indices = [index for index, score in zip(range(len(prediction_scores)), prediction_scores) if score >= threshold]
+            threshold = 0.03
+            top_indices = [index for index, score in zip(range(len(probability_scores)), probability_scores) if score >= threshold]
             if len(top_indices) < 5:
                 break
             else:
@@ -234,7 +237,7 @@ def ssl(labeled_path, unlabeled_path):
     # evaluate ssl model
     with open(current_weights_path, 'rb') as f:
         optimal_params, feature2id = pickle.load(f)
-    tag_all_test(test_labeled_path, optimal_params, feature2id, predictions_path)
+    tag_all_test(test_labeled_path, optimal_params[0], feature2id, predictions_path)
     print("FINAL RESULTS ON TEST SET:")
     test(test_labeled_path, predictions_path)
 
@@ -242,8 +245,21 @@ def ssl(labeled_path, unlabeled_path):
 
 
 if __name__ == '__main__':
+    # with open('C:\\Users\\dovid\\PycharmProjects\\NLP\\NLP-HWs\\HW1\\temp\\weak_label.wtag') as file:
+    #     check_dataset = list()
+    #     for index, line in enumerate(file):
+    #         if line[-1:] == "\n":
+    #             line = line[:-1]
+    #             split_words = line.split(' ')
+    #             for word_idx in range(len(split_words)):
+    #                 try:
+    #                     cur_word, cur_tag = split_words[word_idx].split('_')
+    #                 except:
+    #                     print(split_words[word_idx].split('_'))
+    #                     print('line {}'.format(line))
+
     ssl('data/train2.wtag', 'data/comp2.words')
-    cross_validation('C:\\Users\\dovid\\PycharmProjects\\NLP\\NLP-HWs\\HW1\\data\\train2.wtag')
+    # cross_validation('C:\\Users\\dovid\\PycharmProjects\\NLP\\NLP-HWs\\HW1\\data\\train2.wtag')
     # test()
 
 
