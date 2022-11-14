@@ -4,6 +4,8 @@ from sklearn.model_selection import KFold, train_test_split
 import os
 import shutil
 import numpy as np
+from datetime import datetime
+import time
 
 import pickle
 from preprocessing import preprocess_train
@@ -34,6 +36,12 @@ def get_sentences_labels(file_path):
 
 
 def get_ground_and_predicted(test_file, prediction_file):
+    """
+
+    @param test_file:
+    @param prediction_file:
+    @return:
+    """
     test_labels = list()
     predicted_labels = list()
     # extract test ground truth
@@ -66,7 +74,7 @@ def get_ground_and_predicted(test_file, prediction_file):
     min_labels = min(len(test_labels), len(predicted_labels))
     test_labels = test_labels[:min_labels]
     predicted_labels = predicted_labels[:min_labels]
-    return test_labels, predicted_labels,
+    return test_labels, predicted_labels
 
 
 def get_accuracy(ground_truth, predicted):
@@ -84,12 +92,11 @@ def show_confusion_matrix(ground_truth, predicted, grading_metric):
     plt.show()
 
 def test(ground_truth_path, predicted_path):
-    ground_truth, predicted = get_ground_and_predicted("C:\\Users\\dovid\\PycharmProjects\\NLP\\NLP-HWs\\HW1\\data\\test1.wtag",
-                                                       'C:\\Users\\dovid\\PycharmProjects\\NLP\\NLP-HWs\\HW1\\predictions.wtag')
+    ground_truth, predicted = get_ground_and_predicted(ground_truth_path, predicted_path)
     print(get_accuracy(ground_truth, predicted))
-    show_confusion_matrix(ground_truth, predicted, precision_score)
+    show_confusion_matrix(ground_truth, predicted, f1_score)
 
-def cross_validation(file_path):
+def cross_validation(file_path, threshold, lam, splits, iteration=0):
     """
     Performs cross validation on a given data set
     @param file_path:
@@ -99,12 +106,13 @@ def cross_validation(file_path):
     isExist = os.path.exists('temp')
     if not isExist:
         # Create a new directory because it does not exist
+        shutil.rmtree('temp')
         os.makedirs('temp')
-    threshold = 10
-    lam = 1
-    splits = 2
+    # threshold = 10
+    # lam = 1
+    # splits = 2
     fold_train_path = 'temp/fold_train.wtag'
-    fold_weight_path = 'temp/fold_weight.wtag'
+    fold_weight_path = 'temp/fold_weight.pkl'
     fold_test_path = 'temp/fold_test.wtag'
     fold_prediction_path = 'temp/fold_prediction.wtag'
 
@@ -120,28 +128,31 @@ def cross_validation(file_path):
     cv_results = list()
 
     for iter, (train_index, test_index) in enumerate(kf.split(dataset)):
-        train_dataset = [dataset[i] for i in train_index]
-        test_dataset = [dataset[i] for i in test_index]
-        with open(fold_train_path, mode='wt') as myfile:
-            myfile.write('\n'.join(train_dataset))
-        with open(fold_test_path, mode='wt') as myfile:
-            myfile.write('\n'.join(test_dataset))
+        if iter > 2:
+            break
+        else:
+            train_dataset = [dataset[i] for i in train_index]
+            test_dataset = [dataset[i] for i in test_index]
+            with open(fold_train_path, mode='wt') as myfile:
+                myfile.write('\n'.join(train_dataset))
+            with open(fold_test_path, mode='wt') as myfile:
+                myfile.write('\n'.join(test_dataset))
 
-        statistics, feature2id = preprocess_train(fold_train_path, threshold)
-        numbered_fold_weight_path = fold_weight_path[:-5] + str(iter) + fold_weight_path[-5:]
-        get_optimal_vector(statistics=statistics, feature2id=feature2id, weights_path=numbered_fold_weight_path, lam=lam)
+            statistics, feature2id = preprocess_train(fold_train_path, threshold)
+            numbered_fold_weight_path = fold_weight_path[:-4] + str(iter) + str(iteration)+ fold_weight_path[-4:]
+            get_optimal_vector(statistics=statistics, feature2id=feature2id, weights_path=numbered_fold_weight_path, lam=lam)
 
-        with open(numbered_fold_weight_path, 'rb') as f:
-            optimal_params, feature2id = pickle.load(f)
+            with open(numbered_fold_weight_path, 'rb') as f:
+                optimal_params, feature2id = pickle.load(f)
 
-        pre_trained_weights = optimal_params[0]
+            pre_trained_weights = optimal_params[0]
+            numbered_fold_prediction_path = fold_prediction_path[:-5] + str(iter) + str(iteration) + fold_prediction_path[-5:]
+            tag_all_test(fold_test_path, pre_trained_weights, feature2id, numbered_fold_prediction_path)
 
-        tag_all_test(fold_test_path, pre_trained_weights, feature2id, fold_prediction_path)
+            ground_truth, predicted = get_ground_and_predicted(fold_test_path, numbered_fold_prediction_path)
 
-        ground_truth, predicted = get_ground_and_predicted(fold_test_path, fold_prediction_path)
-
-        curr_accuracy = get_accuracy(ground_truth, predicted)
-        cv_results.append(curr_accuracy)
+            curr_accuracy = get_accuracy(ground_truth, predicted)
+            cv_results.append(curr_accuracy)
 
     print("Threshold", threshold)
     print("Lam", lam)
@@ -154,7 +165,8 @@ def cross_validation(file_path):
     print("Avg. of CV results", cv_avg)
     print()
 
-    return fold_weight_path[:-5] + str(index) + fold_weight_path[-5:]
+    return fold_weight_path[:-4] + str(index) + str(iteration) + fold_weight_path[-4:]
+
 
 def add_weak_labels(unlabeled_data_path, predicted_path, weak_label_path, to_label_indices):
     # modify unlabeled data that should be inferred next round
@@ -181,13 +193,15 @@ def add_weak_labels(unlabeled_data_path, predicted_path, weak_label_path, to_lab
         myfile.write('\n'.join(weak_labeled_dataset))
 
 
-def ssl(labeled_path, unlabeled_path):
+def ssl(labeled_path, unlabeled_path, iter, probability_threshold, feature_threshold, lam, splits):
     isExist = os.path.exists('temp')
     if not isExist:
         # Create a new directory because it does not exist
+        shutil.rmtree('temp')
         os.makedirs('temp')
-    top_n = 10
-    iter = 2
+    # iter = 5
+    # threshold = 0.2
+
     weak_label_path = 'temp/weak_label.wtag'
     test_labeled_path = 'temp/test_labeled.wtag'
     to_be_predicted_path = 'temp/to_be_predicted.words'
@@ -215,7 +229,7 @@ def ssl(labeled_path, unlabeled_path):
     # each iteratin get most confident predictions and use as weak labels
     for i in range(iter):
         probability_scores = list()
-        current_weights_path = cross_validation(weak_label_path)
+        current_weights_path = cross_validation(weak_label_path, feature_threshold, lam, splits, iteration=iter)
         if i == iter - 1: # no point in predicting weak labels
             break
         else:
@@ -223,11 +237,8 @@ def ssl(labeled_path, unlabeled_path):
                 optimal_params, feature2id = pickle.load(f)
 
             tag_all_test(to_be_predicted_path, optimal_params[0], feature2id, predictions_path, probability_scores)
-            #TODO: get predictions somehow
-            # prediction_scores = np.random.uniform(size=100)
-            # top_n_indices = sorted(range(len(prediction_scores)), key=lambda i: prediction_scores[i])[-top_n:]
-            threshold = 0.03
-            top_indices = [index for index, score in zip(range(len(probability_scores)), probability_scores) if score >= threshold]
+
+            top_indices = [index for index, score in zip(range(len(probability_scores)), probability_scores) if score >= probability_threshold]
             if len(top_indices) < 5:
                 break
             else:
@@ -235,6 +246,7 @@ def ssl(labeled_path, unlabeled_path):
                 add_weak_labels(to_be_predicted_path, predictions_path, weak_label_path, top_indices)
 
     # evaluate ssl model
+    print("Final weights path", current_weights_path)
     with open(current_weights_path, 'rb') as f:
         optimal_params, feature2id = pickle.load(f)
     tag_all_test(test_labeled_path, optimal_params[0], feature2id, predictions_path)
@@ -257,10 +269,17 @@ if __name__ == '__main__':
     #                 except:
     #                     print(split_words[word_idx].split('_'))
     #                     print('line {}'.format(line))
+    # start_time = datetime.now()
+    # ssl('data/train2.wtag', 'data/comp2.words')
+    # print((datetime.now() - start_time).total_seconds(), "seconds")
 
-    ssl('data/train2.wtag', 'data/comp2.words')
-    # cross_validation('C:\\Users\\dovid\\PycharmProjects\\NLP\\NLP-HWs\\HW1\\data\\train2.wtag')
-    # test()
+    # from CV with 2 splits the best threshold is 50, but this is problematic because it is on only half of the data available
+    # maybe 0.3 for lam but not so clear
+    for iter, thr in enumerate([1, 10, 50, 100]):
+        print(l, '---------------------------------------------------------------------------')
+        cross_validation('data/train2.wtag', threshold=thr, lam=1, splits=4, iteration=iter)
+        print()
+    # test('data/train2.wtag', 'predictions_2.wtag')
 
 
 

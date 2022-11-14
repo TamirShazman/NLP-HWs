@@ -10,12 +10,14 @@ TAG = 1
 
 
 class FeatureStatistics:
-    def __init__(self):
+    def __init__(self, feature_dict_list=None):
         self.n_total_features = 0  # Total number of features accumulated
 
-        # TODO: add other featues
         # Init all features dictionaries
-        self.feature_dict_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "numbers", "capital_letters"]  # the feature classes used in the code
+        if feature_dict_list == None:
+            self.feature_dict_list = ["f100", "f101", "f102", "f103", "f104", "f105", "f106", "f107", "numbers", "capital_letters"]  # the feature classes used in the code
+        else:
+            self.feature_dict_list = feature_dict_list
         self.feature_rep_dict = {fd: OrderedDict() for fd in self.feature_dict_list}
         '''
         A dictionary containing the counts of each data regarding a feature class. For example in f100, would contain
