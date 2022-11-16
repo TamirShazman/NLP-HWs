@@ -106,7 +106,7 @@ def main():
 
     for threshold in thresholds_list:
         for lam in lambda_list:
-            cv_acc = cross_val(dataset, tmp_folder, 15, 1)
+            cv_acc = cross_val(dataset, tmp_folder, threshold, lam)
 
             with open(cv_result_path, 'a') as f:
                 f.write(f'Threshold: {threshold}, lambda: {lam}, cv accuracy: {cv_acc} \n')
