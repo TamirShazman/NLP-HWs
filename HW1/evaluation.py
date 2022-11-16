@@ -1,4 +1,5 @@
-from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay,accuracy_score, recall_score, precision_score, f1_score
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay, accuracy_score, recall_score, precision_score, \
+    f1_score
 import matplotlib.pyplot as plt
 from sklearn.model_selection import KFold, train_test_split
 import os
@@ -56,7 +57,7 @@ def get_ground_and_predicted(test_file, prediction_file):
                 test_labels.append(cur_tag)
 
     # extract the predicted labels
-    i=1
+    i = 1
     with open(prediction_file) as file:
         for line in file:
             if line[-1:] == "\n":
@@ -71,9 +72,9 @@ def get_ground_and_predicted(test_file, prediction_file):
                 print(i, line)
             i = i + 1
     # TODO: REMOVE BEFORE SUBMITTING
-    min_labels = min(len(test_labels), len(predicted_labels))
-    test_labels = test_labels[:min_labels]
-    predicted_labels = predicted_labels[:min_labels]
+    # min_labels = min(len(test_labels), len(predicted_labels))
+    # test_labels = test_labels[:min_labels]
+    # predicted_labels = predicted_labels[:min_labels]
     return test_labels, predicted_labels
 
 
@@ -87,14 +88,27 @@ def show_confusion_matrix(ground_truth, predicted, grading_metric):
     top_ten_indices = sorted(range(len(scores)), key=lambda i: scores[i])[:10]
     top_ten_labels = [labels[i] for i in top_ten_indices]
     cm = confusion_matrix(ground_truth, predicted, labels=top_ten_labels)
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels = top_ten_labels)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=top_ten_labels)
     disp.plot()
     plt.show()
+    return cm
+
+
+def get_accuracy_for_every_label(ground_truth, predicted):
+    labels = sorted(list(set(ground_truth)))
+    cm = confusion_matrix(ground_truth, predicted)
+    acc = cm.diagonal() / cm.sum(axis=1)
+    return [(label, acc[i]) for i, label in enumerate(labels)]
+
 
 def test(ground_truth_path, predicted_path):
     ground_truth, predicted = get_ground_and_predicted(ground_truth_path, predicted_path)
-    print(get_accuracy(ground_truth, predicted))
+    print("overall _ accuracy", get_accuracy(ground_truth, predicted))
     show_confusion_matrix(ground_truth, predicted, f1_score)
+    acc_list = get_accuracy_for_every_label(ground_truth, predicted)
+    for label, acc in acc_list:
+        print(f"label: {label}, acc: {round(acc, 3)}")
+
 
 def cross_validation(file_path, threshold, lam, splits, iteration=0):
     """
@@ -139,14 +153,16 @@ def cross_validation(file_path, threshold, lam, splits, iteration=0):
                 myfile.write('\n'.join(test_dataset))
 
             statistics, feature2id = preprocess_train(fold_train_path, threshold)
-            numbered_fold_weight_path = fold_weight_path[:-4] + str(iter) + str(iteration)+ fold_weight_path[-4:]
-            get_optimal_vector(statistics=statistics, feature2id=feature2id, weights_path=numbered_fold_weight_path, lam=lam)
+            numbered_fold_weight_path = fold_weight_path[:-4] + str(iter) + str(iteration) + fold_weight_path[-4:]
+            get_optimal_vector(statistics=statistics, feature2id=feature2id, weights_path=numbered_fold_weight_path,
+                               lam=lam)
 
             with open(numbered_fold_weight_path, 'rb') as f:
                 optimal_params, feature2id = pickle.load(f)
 
             pre_trained_weights = optimal_params[0]
-            numbered_fold_prediction_path = fold_prediction_path[:-5] + str(iter) + str(iteration) + fold_prediction_path[-5:]
+            numbered_fold_prediction_path = fold_prediction_path[:-5] + str(iter) + str(
+                iteration) + fold_prediction_path[-5:]
             tag_all_test(fold_test_path, pre_trained_weights, feature2id, numbered_fold_prediction_path)
 
             ground_truth, predicted = get_ground_and_predicted(fold_test_path, numbered_fold_prediction_path)
@@ -189,7 +205,7 @@ def add_weak_labels(unlabeled_data_path, predicted_path, weak_label_path, to_lab
                 if index in to_label_indices:
                     weak_labeled_dataset.append(line)
     with open(weak_label_path, mode='a') as myfile:
-        myfile.write('\n') # hopefully this should solve the problem
+        myfile.write('\n')  # hopefully this should solve the problem
         myfile.write('\n'.join(weak_labeled_dataset))
 
 
@@ -207,7 +223,6 @@ def ssl(labeled_path, unlabeled_path, iter, probability_threshold, feature_thres
     to_be_predicted_path = 'temp/to_be_predicted.words'
     predictions_path = 'temp/comp_m2_337977045_316250877.wtag'
     final_prediction_path = 'temp/final_test.wtag'
-
 
     # set aside objective truth and training set
     dataset = list()
@@ -230,7 +245,7 @@ def ssl(labeled_path, unlabeled_path, iter, probability_threshold, feature_thres
     for i in range(iter):
         probability_scores = list()
         current_weights_path = cross_validation(weak_label_path, feature_threshold, lam, splits, iteration=iter)
-        if i == iter - 1: # no point in predicting weak labels
+        if i == iter - 1:  # no point in predicting weak labels
             break
         else:
             with open(current_weights_path, 'rb') as f:
@@ -238,7 +253,8 @@ def ssl(labeled_path, unlabeled_path, iter, probability_threshold, feature_thres
 
             tag_all_test(to_be_predicted_path, optimal_params[0], feature2id, predictions_path, probability_scores)
 
-            top_indices = [index for index, score in zip(range(len(probability_scores)), probability_scores) if score >= probability_threshold]
+            top_indices = [index for index, score in zip(range(len(probability_scores)), probability_scores) if
+                           score >= probability_threshold]
             if len(top_indices) < 5:
                 break
             else:
@@ -252,8 +268,6 @@ def ssl(labeled_path, unlabeled_path, iter, probability_threshold, feature_thres
     tag_all_test(test_labeled_path, optimal_params[0], feature2id, predictions_path)
     print("FINAL RESULTS ON TEST SET:")
     test(test_labeled_path, predictions_path)
-
-
 
 
 if __name__ == '__main__':
@@ -275,12 +289,8 @@ if __name__ == '__main__':
 
     # from CV with 2 splits the best threshold is 50, but this is problematic because it is on only half of the data available
     # maybe 0.3 for lam but not so clear
-    for iter, thr in enumerate([1, 10, 50, 100]):
-        print(l, '---------------------------------------------------------------------------')
-        cross_validation('data/train2.wtag', threshold=thr, lam=1, splits=4, iteration=iter)
-        print()
-    # test('data/train2.wtag', 'predictions_2.wtag')
-
-
-
-
+    # for iter, thr in enumerate([1, 10, 50, 100]):
+    #     print(l, '---------------------------------------------------------------------------')
+    #     cross_validation('data/train2.wtag', threshold=thr, lam=1, splits=4, iteration=iter)
+    #     print()
+    test('data/test1.wtag', 'predictions_final.wtag')
