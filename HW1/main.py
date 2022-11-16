@@ -5,17 +5,17 @@ from inference import tag_all_test
 
 
 def main():
-    threshold = 50
+    threshold = 1
     lam = 1
 
-    train_path = "data/train2.wtag"
-    test_path = "data/fake_test2.wtag"
+    train_path = "data/train1.wtag"
+    test_path = "data/test1.wtag"
 
-    weights_path = 'weights_2.pkl'
-    predictions_path = 'predictions_2.wtag'
+    weights_path = 'weights.pkl'
+    predictions_path = 'predictions.wtag'
 
     statistics, feature2id = preprocess_train(train_path, threshold)
-    get_optimal_vector(statistics=statistics, feature2id=feature2id, weights_path=weights_path, lam=lam)
+    # get_optimal_vector(statistics=statistics, feature2id=feature2id, weights_path=weights_path, lam=lam)
 
     with open(weights_path, 'rb') as f:
         optimal_params, feature2id = pickle.load(f)

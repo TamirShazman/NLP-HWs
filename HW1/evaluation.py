@@ -106,6 +106,8 @@ def cross_validation(file_path, threshold, lam, splits, iteration=0):
     isExist = os.path.exists('temp')
     if not isExist:
         # Create a new directory because it does not exist
+        os.makedirs('temp')
+    else:
         shutil.rmtree('temp')
         os.makedirs('temp')
     # threshold = 10
@@ -167,6 +169,39 @@ def cross_validation(file_path, threshold, lam, splits, iteration=0):
 
     return fold_weight_path[:-4] + str(index) + str(iteration) + fold_weight_path[-4:]
 
+def train(file_path, threshold, lam, iteration=0):
+    """
+    Trains on whole (test) set
+    @param file_path:
+    @param return_all:
+    @return:
+    """
+    isExist = os.path.exists('temp')
+    if not isExist:
+        # Create a new directory because it does not exist
+        os.makedirs('temp')
+    else:
+        shutil.rmtree('temp')
+        os.makedirs('temp')
+    # threshold = 10
+    # lam = 1
+    # splits = 2
+    fold_train_path = 'temp/fold_train.wtag'
+    fold_weight_path = 'temp/fold_weight.pkl'
+    fold_prediction_path = 'temp/fold_prediction.wtag'
+
+    # dataset = list()
+    # with open(file_path) as file:
+    #     for line in file:
+    #         if line[-1:] == "\n":
+    #             line = line[:-1]
+    #             dataset.append(line)
+
+    statistics, feature2id = preprocess_train(file_path, threshold)
+    get_optimal_vector(statistics=statistics, feature2id=feature2id, weights_path=fold_weight_path, lam=lam)
+
+    return fold_weight_path
+
 
 def add_weak_labels(unlabeled_data_path, predicted_path, weak_label_path, to_label_indices):
     # modify unlabeled data that should be inferred next round
@@ -193,19 +228,21 @@ def add_weak_labels(unlabeled_data_path, predicted_path, weak_label_path, to_lab
         myfile.write('\n'.join(weak_labeled_dataset))
 
 
-def ssl(labeled_path, unlabeled_path, iter, probability_threshold, feature_threshold, lam, splits):
-    isExist = os.path.exists('temp')
+def ssl(labeled_path, unlabeled_path, iter, probability_threshold, feature_threshold, lam, splits, final=False):
+    isExist = os.path.exists('ssl_last_w_cv')
     if not isExist:
         # Create a new directory because it does not exist
-        shutil.rmtree('temp')
-        os.makedirs('temp')
+        os.makedirs('ssl_last_w_cv')
+    else:
+        shutil.rmtree('ssl_last_w_cv')
+        os.makedirs('ssl_last_w_cv')
     # iter = 5
     # threshold = 0.2
 
-    weak_label_path = 'temp/weak_label.wtag'
-    test_labeled_path = 'temp/test_labeled.wtag'
-    to_be_predicted_path = 'temp/to_be_predicted.words'
-    predictions_path = 'temp/comp_m2_337977045_316250877.wtag'
+    weak_label_path = 'ssl_last_w_cv/weak_label.wtag'
+    test_labeled_path = 'ssl_last_w_cv/test_labeled.wtag'
+    to_be_predicted_path = 'ssl_last_w_cv/to_be_predicted.words'
+    predictions_path = 'ssl_last_w_cv/prediction.wtag'
     final_prediction_path = 'temp/final_test.wtag'
 
 
@@ -219,39 +256,52 @@ def ssl(labeled_path, unlabeled_path, iter, probability_threshold, feature_thres
     train_dataset, test_dataset = train_test_split(dataset)
     # train_dataset = [dataset[i] for i in train_index]
     # test_dataset = [dataset[i] for i in test_index]
-    with open(weak_label_path, mode='wt') as myfile:
-        myfile.write('\n'.join(train_dataset))
+
     with open(test_labeled_path, mode='wt') as myfile:
         myfile.write('\n'.join(test_dataset))
+    if final != True:
+        with open(weak_label_path, mode='wt') as myfile:
+            myfile.write('\n'.join(train_dataset))
+    else:
+        shutil.copy2(labeled_path, weak_label_path)
     # set aside labels to be predicted
     shutil.copy2(unlabeled_path, to_be_predicted_path)
 
     # each iteratin get most confident predictions and use as weak labels
     for i in range(iter):
         probability_scores = list()
-        current_weights_path = cross_validation(weak_label_path, feature_threshold, lam, splits, iteration=iter)
+        if final != True:
+            current_weights_path = cross_validation(weak_label_path, feature_threshold, lam, splits, iteration=iter)
+        else:
+            current_weights_path = train(weak_label_path, feature_threshold, lam, iter)
         if i == iter - 1: # no point in predicting weak labels
             break
         else:
             with open(current_weights_path, 'rb') as f:
                 optimal_params, feature2id = pickle.load(f)
-
-            tag_all_test(to_be_predicted_path, optimal_params[0], feature2id, predictions_path, probability_scores)
+            numbered_prediction_path = predictions_path[:-5] + str(iter) + str(
+                i) + predictions_path[-5:]
+            tag_all_test(to_be_predicted_path, optimal_params[0], feature2id, numbered_prediction_path, probability_scores)
 
             top_indices = [index for index, score in zip(range(len(probability_scores)), probability_scores) if score >= probability_threshold]
             if len(top_indices) < 5:
                 break
             else:
                 print("Adding {} weak labels".format(len(top_indices)))
-                add_weak_labels(to_be_predicted_path, predictions_path, weak_label_path, top_indices)
-
-    # evaluate ssl model
+                add_weak_labels(to_be_predicted_path, numbered_prediction_path, weak_label_path, top_indices)
+            # evaluate ssl_last_w_cv model
+            with open(current_weights_path, 'rb') as f:
+                optimal_params, feature2id = pickle.load(f)
+            tag_all_test(test_labeled_path, optimal_params[0], feature2id, numbered_prediction_path[:4] + "test" + numbered_prediction_path[4:])
+            print(i, "RESULTS ON TEST SET:")
+            test(test_labeled_path, numbered_prediction_path[:4] + "test" + numbered_prediction_path[4:])
+    # evaluate ssl_last_w_cv model
     print("Final weights path", current_weights_path)
     with open(current_weights_path, 'rb') as f:
         optimal_params, feature2id = pickle.load(f)
-    tag_all_test(test_labeled_path, optimal_params[0], feature2id, predictions_path)
+    tag_all_test(test_labeled_path, optimal_params[0], feature2id, numbered_prediction_path[:4] + "FINAL" + numbered_prediction_path[4:])
     print("FINAL RESULTS ON TEST SET:")
-    test(test_labeled_path, predictions_path)
+    test(test_labeled_path, numbered_prediction_path[:4] + "FINAL" + numbered_prediction_path[4:])
 
 
 
@@ -270,15 +320,12 @@ if __name__ == '__main__':
     #                     print(split_words[word_idx].split('_'))
     #                     print('line {}'.format(line))
     # start_time = datetime.now()
-    # ssl('data/train2.wtag', 'data/comp2.words')
+    ssl('data/train2.wtag', 'data/comp2.words', 3, 0.4, , 0.5, 4, final=True)
     # print((datetime.now() - start_time).total_seconds(), "seconds")
 
-    # from CV with 2 splits the best threshold is 50, but this is problematic because it is on only half of the data available
+    # from CV with 2 splits the best threshold is 1, but this is problematic because it is on only half of the data available
     # maybe 0.3 for lam but not so clear
-    for iter, thr in enumerate([1, 10, 50, 100]):
-        print(l, '---------------------------------------------------------------------------')
-        cross_validation('data/train2.wtag', threshold=thr, lam=1, splits=4, iteration=iter)
-        print()
+    #     cross_validation('data/train2.wtag', threshold=1, lam=0.5, splits=4, iteration=iter)
     # test('data/train2.wtag', 'predictions_2.wtag')
 
 
