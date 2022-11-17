@@ -26,9 +26,14 @@ def get_sentences_labels(file_path):
             split_words = line.split(' ')
 
             for word_idx in range(len(split_words)):
-                cur_word, cur_tag = split_words[word_idx].split('_')
-                sentence.append(cur_word)
-                sentence_POS.append(cur_tag)
+                try:
+                    cur_word, cur_tag = split_words[word_idx].split('_')
+                    sentence.append(cur_word)
+                    sentence_POS.append(cur_tag)
+                except Exception as e:
+                    print(e)
+                    print(word_idx)
+                    print(line)
             sentences.append(sentence)
             labels.append(sentence_POS)
 
@@ -217,32 +222,36 @@ def add_weak_labels(unlabeled_data_path, predicted_path, weak_label_path, to_lab
 
     # add weak labels
     weak_labeled_dataset = list()
+    with open(weak_label_path) as file:
+        for index, line in enumerate(file):
+            if line[-1:] == "\n":
+                line = line[:-1]
+                weak_labeled_dataset.append(line)
     with open(predicted_path) as file:
         for index, line in enumerate(file):
             if line[-1:] == "\n":
                 line = line[:-1]
                 if index in to_label_indices:
                     weak_labeled_dataset.append(line)
-    with open(weak_label_path, mode='a') as myfile:
-        myfile.write('\n') # hopefully this should solve the problem
+    with open(weak_label_path, mode='wt') as myfile:
         myfile.write('\n'.join(weak_labeled_dataset))
 
 
 def ssl(labeled_path, unlabeled_path, iter, probability_threshold, feature_threshold, lam, splits, final=False):
-    isExist = os.path.exists('ssl_last_w_cv')
+    isExist = os.path.exists('ssl')
     if not isExist:
         # Create a new directory because it does not exist
-        os.makedirs('ssl_last_w_cv')
+        os.makedirs('ssl')
     else:
-        shutil.rmtree('ssl_last_w_cv')
-        os.makedirs('ssl_last_w_cv')
+        shutil.rmtree('ssl')
+        os.makedirs('ssl')
     # iter = 5
     # threshold = 0.2
 
-    weak_label_path = 'ssl_last_w_cv/weak_label.wtag'
-    test_labeled_path = 'ssl_last_w_cv/test_labeled.wtag'
-    to_be_predicted_path = 'ssl_last_w_cv/to_be_predicted.words'
-    predictions_path = 'ssl_last_w_cv/prediction.wtag'
+    weak_label_path = 'ssl/weak_label.wtag'
+    test_labeled_path = 'ssl/test_labeled.wtag'
+    to_be_predicted_path = 'ssl/to_be_predicted.words'
+    predictions_path = 'ssl/prediction.wtag'
     final_prediction_path = 'temp/final_test.wtag'
 
 
@@ -289,45 +298,25 @@ def ssl(labeled_path, unlabeled_path, iter, probability_threshold, feature_thres
             else:
                 print("Adding {} weak labels".format(len(top_indices)))
                 add_weak_labels(to_be_predicted_path, numbered_prediction_path, weak_label_path, top_indices)
-            # evaluate ssl_last_w_cv model
+            # evaluate ssl model
             with open(current_weights_path, 'rb') as f:
                 optimal_params, feature2id = pickle.load(f)
-            tag_all_test(test_labeled_path, optimal_params[0], feature2id, numbered_prediction_path[:4] + "test" + numbered_prediction_path[4:])
+            tag_all_test(test_labeled_path, optimal_params[0], feature2id, numbered_prediction_path[:-6] + "test" + numbered_prediction_path[-6:])
             print(i, "RESULTS ON TEST SET:")
-            test(test_labeled_path, numbered_prediction_path[:4] + "test" + numbered_prediction_path[4:])
-    # evaluate ssl_last_w_cv model
+            test(test_labeled_path, numbered_prediction_path[:-6] + "test" + numbered_prediction_path[-6:])
+    # evaluate ssl model
     print("Final weights path", current_weights_path)
     with open(current_weights_path, 'rb') as f:
         optimal_params, feature2id = pickle.load(f)
-    tag_all_test(test_labeled_path, optimal_params[0], feature2id, numbered_prediction_path[:4] + "FINAL" + numbered_prediction_path[4:])
+    tag_all_test(test_labeled_path, optimal_params[0], feature2id, numbered_prediction_path[:-6] + "FINAL" + numbered_prediction_path[-6:])
     print("FINAL RESULTS ON TEST SET:")
-    test(test_labeled_path, numbered_prediction_path[:4] + "FINAL" + numbered_prediction_path[4:])
+    test(test_labeled_path, numbered_prediction_path[:-6] + "FINAL" + numbered_prediction_path[-6:])
 
 
 
 
 if __name__ == '__main__':
-    # with open('C:\\Users\\dovid\\PycharmProjects\\NLP\\NLP-HWs\\HW1\\temp\\weak_label.wtag') as file:
-    #     check_dataset = list()
-    #     for index, line in enumerate(file):
-    #         if line[-1:] == "\n":
-    #             line = line[:-1]
-    #             split_words = line.split(' ')
-    #             for word_idx in range(len(split_words)):
-    #                 try:
-    #                     cur_word, cur_tag = split_words[word_idx].split('_')
-    #                 except:
-    #                     print(split_words[word_idx].split('_'))
-    #                     print('line {}'.format(line))
-    # start_time = datetime.now()
-    ssl('data/train2.wtag', 'data/comp2.words', 3, 0.4, , 0.5, 4, final=True)
-    # print((datetime.now() - start_time).total_seconds(), "seconds")
-
-    # from CV with 2 splits the best threshold is 1, but this is problematic because it is on only half of the data available
-    # maybe 0.3 for lam but not so clear
-    #     cross_validation('data/train2.wtag', threshold=1, lam=0.5, splits=4, iteration=iter)
-    # test('data/train2.wtag', 'predictions_2.wtag')
-
-
-
-
+    # get_sentences_labels('ssl/weak_label.wtag')
+    start_time = datetime.now()
+    ssl('data/train2.wtag', 'data/comp2.words', 3, 0.4, 1, 0.5, 4, final=True)
+    print((datetime.now() - start_time).total_seconds(), "seconds")
