@@ -31,9 +31,7 @@ def get_sentences_labels(file_path):
                     sentence.append(cur_word)
                     sentence_POS.append(cur_tag)
                 except Exception as e:
-                    print(e)
-                    print(word_idx)
-                    print(line)
+                    sentence.append(split_words[word_idx])
             sentences.append(sentence)
             labels.append(sentence_POS)
 
@@ -317,6 +315,18 @@ def ssl(labeled_path, unlabeled_path, iter, probability_threshold, feature_thres
 
 if __name__ == '__main__':
     # get_sentences_labels('ssl/weak_label.wtag')
-    start_time = datetime.now()
-    ssl('data/train2.wtag', 'data/comp2.words', 3, 0.4, 1, 0.5, 4, final=True)
-    print((datetime.now() - start_time).total_seconds(), "seconds")
+    # start_time = datetime.now()
+    # ssl('data/train2.wtag', 'data/comp2.words', 3, 0.4, 1, 0.5, 4, final=True)
+    # print((datetime.now() - start_time).total_seconds(), "seconds")
+    # test('data/train2.wtag', 'predictions_2.wtag')
+    sentences1, _ = get_sentences_labels('data/comp_m2_337977045_316250877.wtag')
+    sentences2, _ = get_sentences_labels('data/comp2.words')
+
+    matching = list()
+    if len(sentences1) != len(sentences2):
+        print("fuck")
+    else:
+        for s1, s2 in zip(sentences1, sentences2):
+            matches = [s1_word == s2_word for s1_word, s2_word in zip(s1, s2)]
+            matching.extend(matches)
+    print(np.array(list(map(int, matching))).mean())
