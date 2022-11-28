@@ -80,8 +80,11 @@ def get_label(file_path):
                 continue
 
             word_tagged = line.split('\t')
-
-            _, tag = word_tagged
+            try:
+                _, tag = word_tagged
+            except:
+                test = word_tagged
+                print(test)
 
             label_lists.append(0 if tag == 'O' else 1)
     return label_lists
@@ -278,6 +281,55 @@ def convert_sentence_presentation_to_mean(sentence, model, window=3, weight_word
             num_of_founded_rep += 1
             vec += weight_word_dict[w] * rep
         vec = vec / num_of_founded_rep
+
+        if use_pos_embeded:
+            vec = np.concatenate((vec, find_word_rep(str(pos), model)))
+        rep_matrix.append(vec)
+
+    return np.stack(rep_matrix)
+
+def convert_sentence_presentation_to_concatenation(sentence, model, window=1, use_pos_embeded=False):
+    """
+    :param use_pos_embeded: if position will be represented in the vector
+    :param weight_word: in which why to weight the mean
+    :param model: glove or word2vec
+    :param window: number of words next to current word that will use in the mean
+    :param sentence: list of words
+    :return: np array list of size lxd, when l the sentence length and d is the embedded word presentation length.
+    The word vector presentation in the returning array will be created with the mean of vectors inside the window.
+    """
+
+    rep_matrix = []
+    # append start and end tokens
+    for i in range(window):
+        sentence.insert(0, '*')
+    for i in range(window):
+        sentence.insert(len(sentence), '~')
+
+    l = len(sentence)
+
+    for pos, word in enumerate(sentence):
+        # start and end token
+        if pos < window or pos > l - window - 1: #pos == l - 1:
+            continue
+        related_words = []
+        for i in range(pos - window, pos + window + 1):
+            if 0 <= i <= l - 1:
+                related_words.append(sentence[i])
+            else:
+                continue
+
+        vec_parts = list()
+        for w in related_words:
+
+            rep = find_word_rep(w, model)
+
+            # if not a single representation found place a rare word
+            if rep is None:
+                rep = model['nonsense']
+
+            vec_parts.append(rep)
+        vec = np.concatenate(vec_parts, axis=0)
 
         if use_pos_embeded:
             vec = np.concatenate((vec, find_word_rep(str(pos), model)))
