@@ -3,7 +3,7 @@ import numpy as np
 from sklearn.metrics import f1_score
 
 from preprocessing import get_label, download_model, break_file_to_sentences, convert_sentence_presentation_to_mean
-from moduls import knn_prediction
+from moduls import knn_prediction, dl_prediction
 
 
 def main():
@@ -33,7 +33,12 @@ def main():
     assert test_matrix.shape[0] == test_labels.shape[0], "Number of sample and labels is not the same"
 
     # predict
-    pred = knn_prediction(training_matrix, training_labels, test_matrix)
+    # pred = knn_prediction(training_matrix, training_labels, test_matrix)
+    # print('knn prediction')
+    # print(f"The F1: score is :{f1_score(pred, test_labels)}")
+
+    print('deep learning basic prediction')
+    pred = dl_prediction(training_matrix, training_labels, test_matrix, test_labels)
     print(f"The F1: score is :{f1_score(pred, test_labels)}")
 
 

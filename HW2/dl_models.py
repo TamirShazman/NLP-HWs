@@ -1,6 +1,5 @@
 from torch import nn
 
-
 class hw2_part2_model(nn.Module):
     def __init__(self, input_size, output_size):
         super().__init__()

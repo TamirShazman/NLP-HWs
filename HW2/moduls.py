@@ -2,9 +2,12 @@ from sklearn.neighbors import KNeighborsClassifier
 import torch
 from torch.utils.data import DataLoader
 from torch import nn
+from dl_models import hw2_part2_model
 import time
 from sklearn.metrics import f1_score
 from IPython import display
+import matplotlib.pyplot as plt
+from my_data import my_dataset
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -41,8 +44,8 @@ def dl_load(x_train, y_train, x_dev, y_dev):
     @param y_dev:
     @return:
     """
-    train_dataloader = DataLoader(zip(x_train, y_train), batch_size=64, shuffle=True)
-    dev_dataloader = DataLoader(zip(x_dev, y_dev), batch_size=64, shuffle=True)
+    train_dataloader = DataLoader(my_dataset(x_train, y_train), batch_size=64, shuffle=True)
+    dev_dataloader = DataLoader(my_dataset(x_dev, y_dev), batch_size=64, shuffle=False)
     return train_dataloader, dev_dataloader
 
 def dl_train(model, train_load, test_load, epochs, loss_f, optimizer, model_file_name):
@@ -81,7 +84,7 @@ def dl_train(model, train_load, test_load, epochs, loss_f, optimizer, model_file
             loss = loss_f(output, y)
 
             loss.backward()
-            nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+            # nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
             optimizer.step()
             optimizer.zero_grad()
 
@@ -97,6 +100,7 @@ def dl_train(model, train_load, test_load, epochs, loss_f, optimizer, model_file
         # test model
         display.clear_output()
 
+        predictions = list()
         model.eval()
         with torch.no_grad():
             epoch_test_loss = list()
@@ -111,6 +115,8 @@ def dl_train(model, train_load, test_load, epochs, loss_f, optimizer, model_file
                 epoch_test_loss.append(loss_f(output, y).cpu().item())
 
                 predicted = torch.argmax(output, 1)
+
+                predictions.extend(predicted.cpu().tolist())
                 test_total += y.size(0)
                 test_correct += (predicted == y).sum()
 
@@ -120,31 +126,31 @@ def dl_train(model, train_load, test_load, epochs, loss_f, optimizer, model_file
 
         print("Epoch time is: {}".format(time.perf_counter() - start_time))
         print("Total time is: {}".format(time.perf_counter() - total_start_time))
-        display_progress(train_loss, test_loss, train_accuracy, test_accuracy, epoch)
+        # display_progress(train_loss, test_loss, train_accuracy, test_accuracy, epoch)
 
         # # save the model every 5 epochs
         # if (epoch + 1) % 5 == 0 or epoch == epochs-1:
         # torch.save(model.state_dict(), model_file_name + '.pkl')
-
-        if current_loss < best_loss:
-            best_loss = current_loss
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'loss': current_loss}, model_file_name + '.pkl')
-        elif stop_training:
-            torch.save({
-                'epoch': epoch,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'loss': current_loss}, model_file_name + '.pkl')
-            break
+        #
+        # if current_loss < best_loss:
+        #     best_loss = current_loss
+        #     torch.save({
+        #         'epoch': epoch,
+        #         'model_state_dict': model.state_dict(),
+        #         'optimizer_state_dict': optimizer.state_dict(),
+        #         'loss': current_loss}, model_file_name + '.pkl')
+        # elif stop_training:
+        #     torch.save({
+        #         'epoch': epoch,
+        #         'model_state_dict': model.state_dict(),
+        #         'optimizer_state_dict': optimizer.state_dict(),
+        #         'loss': current_loss}, model_file_name + '.pkl')
+        #     break
 
         loss = (train_loss, test_loss)
         accuracy = (train_accuracy, test_accuracy)
 
-    return loss, accuracy
+    return predictions, loss, accuracy
 
 def display_progress(train_loss, test_loss, train_accuracy, test_accuracy, epoch=None):
     fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(16, 4))
@@ -172,8 +178,8 @@ def dl_prediction(x_train, y_train, x_dev, y_dev):
     train_loader, dev_loader = dl_load(x_train, y_train, x_dev, y_dev)
 
     # train model
-    model = hw2_part2_mode(input_size=300, output_size=2).to(device)
-    epochs = 5
+    model = hw2_part2_model(input_size=200, output_size=2).to(device)
+    epochs = 10
     lr = 0.01
 
     criterion = nn.CrossEntropyLoss()
@@ -181,13 +187,12 @@ def dl_prediction(x_train, y_train, x_dev, y_dev):
     model_file_name = 'hw2_part2'
     print('number of parameters: ', sum(param.numel() for param in model.parameters()))
 
-    loss, accuracy = \
+    predictions, loss, accuracy = \
         dl_train(model, train_loader, dev_loader, epochs, criterion, optimizer, model_file_name)
 
     print("finished running")
-    min_loss = min(loss)
-    max_accuracy = max(accuracy)
-    print("returning min loss and max accuracy")
-    return min_loss, max_accuracy
+    plt.plot(range(len(loss)), loss)
+    plt.savefig('loss_over_epochs.pdf')
+    return predictions
 
 
