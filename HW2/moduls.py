@@ -2,7 +2,7 @@ from sklearn.neighbors import KNeighborsClassifier
 import torch
 from torch.utils.data import DataLoader
 from torch import nn
-from dl_models import hw2_part2_model
+from dl_models import hw2_part2_model, WeightedFocalLoss
 import time
 from sklearn.metrics import f1_score
 from IPython import display
@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 from my_data import my_dataset
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+batch_size = 64
 
 def knn_prediction(x_train, y_train, x_test, k=3):
     """
@@ -44,8 +45,8 @@ def dl_load(x_train, y_train, x_dev, y_dev):
     @param y_dev:
     @return:
     """
-    train_dataloader = DataLoader(my_dataset(x_train, y_train), batch_size=64, shuffle=True)
-    dev_dataloader = DataLoader(my_dataset(x_dev, y_dev), batch_size=64, shuffle=False)
+    train_dataloader = DataLoader(my_dataset(x_train, y_train), batch_size=batch_size, shuffle=True)
+    dev_dataloader = DataLoader(my_dataset(x_dev, y_dev), batch_size=batch_size, shuffle=False)
     return train_dataloader, dev_dataloader
 
 def dl_train(model, train_load, test_load, epochs, loss_f, optimizer, model_file_name):
@@ -77,6 +78,8 @@ def dl_train(model, train_load, test_load, epochs, loss_f, optimizer, model_file
         model.train()
         for X, y in train_load:
             X = X.to(device)
+            # y = torch.zeros(batch_size, 2)
+            # y[range(y.shape[0]), target] = 1
             y = y.to(device)
 
             # forward pass
@@ -124,6 +127,7 @@ def dl_train(model, train_load, test_load, epochs, loss_f, optimizer, model_file
             test_loss.append(current_loss)
             test_accuracy.append((test_correct / test_total).cpu())
 
+        print(epoch)
         print("Epoch time is: {}".format(time.perf_counter() - start_time))
         print("Total time is: {}".format(time.perf_counter() - total_start_time))
         # display_progress(train_loss, test_loss, train_accuracy, test_accuracy, epoch)
@@ -178,11 +182,13 @@ def dl_prediction(x_train, y_train, x_dev, y_dev, input_size):
     train_loader, dev_loader = dl_load(x_train, y_train, x_dev, y_dev)
 
     # train model
-    model = hw2_part2_model(input_size=input_size, output_size=2).to(device)
-    epochs = 30
+    model = hw2_part2_model(input_size=input_size).to(device)
+    epochs = 10
     lr = 0.01
 
     criterion = nn.CrossEntropyLoss()
+    # criterion = WeightedFocalLoss()
+
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     model_file_name = 'hw2_part2'
     print('number of parameters: ', sum(param.numel() for param in model.parameters()))

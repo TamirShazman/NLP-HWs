@@ -17,8 +17,8 @@ def main():
     # create training dataset
     training_matrix = []
     for sentence in break_file_to_sentences(train_path):
-        # training_matrix.append(convert_sentence_presentation_to_mean(sentence, model, use_pos_embeded=False))
-        training_matrix.append(convert_sentence_presentation_to_concatenation(sentence, model))
+        training_matrix.append(convert_sentence_presentation_to_mean(sentence, model, use_pos_embeded=False))
+        # training_matrix.append(convert_sentence_presentation_to_concatenation(sentence, model))
     training_matrix = np.concatenate(training_matrix)
     training_labels = np.array(get_label(train_path))
     assert training_matrix.shape[0] == training_labels.shape[0], "Number of sample and labels is not the same"
@@ -26,8 +26,8 @@ def main():
     test_matrix = []
 
     for sentence in break_file_to_sentences(test_path):
-        # test_matrix.append(convert_sentence_presentation_to_mean(sentence, model, use_pos_embeded=False))
-        test_matrix.append(convert_sentence_presentation_to_concatenation(sentence, model))
+        test_matrix.append(convert_sentence_presentation_to_mean(sentence, model, use_pos_embeded=False))
+        # test_matrix.append(convert_sentence_presentation_to_concatenation(sentence, model))
     test_matrix = np.concatenate(test_matrix)
     test_labels = np.array(get_label(test_path))
     assert test_matrix.shape[0] == test_labels.shape[0], "Number of sample and labels is not the same"
