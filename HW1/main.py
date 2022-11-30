@@ -5,14 +5,14 @@ from inference import tag_all_test
 
 
 def main():
-    threshold = 10
-    lam = 1
+    threshold = 1
+    lam = 0.5
 
-    train_path = "data/train1.wtag"
-    test_path = "data/comp1.words"
+    train_path = "ssl/weak_label.wtag"
+    test_path = "data/comp2.words"
 
-    weights_path = 'weights.pkl'
-    predictions_path = 'predictions_comp1.wtag'
+    weights_path = 'weights_2.pkl'
+    predictions_path = 'data/comp_m2_337977045_316250877.wtag'
 
     statistics, feature2id = preprocess_train(train_path, threshold)
     get_optimal_vector(statistics=statistics, feature2id=feature2id, weights_path=weights_path, lam=lam)

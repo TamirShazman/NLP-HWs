@@ -2,8 +2,8 @@ from gensim.models import KeyedVectors
 import numpy as np
 from sklearn.metrics import f1_score
 
-from preprocessing import get_label, download_model, break_file_to_sentences, convert_sentence_presentation_to_mean, convert_sentence_presentation_to_concatenation
-from moduls import knn_prediction, dl_prediction
+from preprocessing import get_label, download_model, break_file_to_sentences, convert_sentence_presentation_to_mean
+from moduls import knn_prediction
 
 
 def main():
