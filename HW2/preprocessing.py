@@ -53,6 +53,9 @@ def break_file_to_sentences(file_path):
             word_tagged = line.split('\t')
 
             if len(word_tagged) == 1:
+                word_tagged = line.split(' ')
+
+            if len(word_tagged) == 1:
                 list_of_words.append(word_tagged[0])
             else:
                 word, _ = word_tagged
@@ -80,6 +83,8 @@ def get_label(file_path):
                 continue
 
             word_tagged = line.split('\t')
+            if len(word_tagged) == 1:
+                word_tagged = line.split(' ')
             try:
                 _, tag = word_tagged
             except:
@@ -235,7 +240,7 @@ def convert_sentence_presentation_to_mean(sentence, model, window=3, weight_word
     :return: np array list of size lxd, when l the sentence length and d is the embedded word presentation length.
     The word vector presentation in the returning array will be created with the mean of vectors inside the window.
     """
-
+    count = 0
     rep_matrix = []
     # append start and end tokens
     sentence.insert(0, '*')
@@ -276,6 +281,7 @@ def convert_sentence_presentation_to_mean(sentence, model, window=3, weight_word
 
             # if not a single representation found place a rare word
             if rep is None:
+                count += 1
                 rep = model['nonsense']
 
             num_of_founded_rep += 1
