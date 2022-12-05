@@ -4,7 +4,7 @@ import copy
 from sklearn.model_selection import KFold
 
 from preprocessing import get_label, download_model, break_file_to_sentences, find_word_rep
-from LSTM_model import LSTMDataset
+from LSTM_model import ReviewsDataSet, train
 from moduls import lstm_prediction
 
 def stack_sen_label(model, sentences, labels):
@@ -37,24 +37,39 @@ def stack_sen_label(model, sentences, labels):
 
 def main():
     train_path = 'data/train_new.tagged'
-    test_path = 'data/dev.tagged'
+    test_path = 'data/test_real.tagged'
     path_to_word_rep = 'word_rep/'
 
-    model_path = download_model('glove', path_to_word_rep)
-    model = KeyedVectors.load(model_path)
+    # model_path = download_model('glove', path_to_word_rep)
+    # model = KeyedVectors.load(model_path)
 
     # create training dataset
-    sentences = break_file_to_sentences(train_path)
-    y = get_label(train_path)
-    X, y, sen_len = stack_sen_label(model, sentences, y)
-    train_dataset = LSTMDataset(X, y, sen_len)
+    train_sentences = break_file_to_sentences(train_path)
+    sen_len = [len(s) for s in train_sentences]
+    labels = get_label(train_path)
+    train_y_s = []
+    counter = 0
+    for s in train_sentences:
+        y = []
+        for i in range(len(s)):
+            y.append(labels[counter])
+            counter += 1
+        train_y_s.append(y)
 
-    # create training dataset
-    sentences = break_file_to_sentences(test_path)
-    y = get_label(test_path)
-    X, y, sen_len = stack_sen_label(model, sentences, y)
-    test_dataset = LSTMDataset(X, y, sen_len)
+    # create test dataset
+    test_sentences = break_file_to_sentences(test_path)
+    sen_len = [len(s) for s in test_sentences]
+    labels = get_label(test_path)
+    test_y_s = []
+    counter = 0
+    for s in test_sentences:
+        y = []
+        for i in range(len(s)):
+            y.append(labels[counter])
+            counter += 1
+        test_y_s.append(y)
 
+    train(train_sentences, train_y_s, test_sentences, test_y_s)
     # kf = KFold(n_splits=2, random_state=None, shuffle=False)
     # for train_index, test_index in kf.split(X):
     #     X_train, X_test = X[train_index], X[test_index]
