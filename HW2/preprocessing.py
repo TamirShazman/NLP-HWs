@@ -4,6 +4,7 @@ import numpy as np
 from torch.utils.data import Dataset
 import os
 from gensim.models import KeyedVectors
+from nltk.stem import PorterStemmer
 
 WORD_2_VEC_PATH = 'word2vec-google-news-300'
 GLOVE_TWITTER_PATH = 'glove-twitter-200'
@@ -16,8 +17,15 @@ def download_model(model, path_to_word_rep):
     :param model: glove_twiter or glove_wiki or word2vec
     :return: download the weights of the model inside path_to_weights\ and return the path
     """
-
-    path_to_weights = 'glove_weights.kv' if model == 'glove' else 'word2vec_weights.kv'
+    if model == 'glove':
+        path_to_weights = 'glove_weights.kv'
+        path = GLOVE_TWITTER_PATH
+    elif model == 'word2vec':
+        path_to_weights = 'word2vec_weights.kv'
+        path = WORD_2_VEC_PATH
+    else:
+        path_to_weights = 'glove_wiki_weights.kv'
+        path = GLOVE_WIKI_PATH
 
     if not os.path.isdir(path_to_word_rep):
         os.mkdir(path_to_word_rep)
@@ -25,7 +33,7 @@ def download_model(model, path_to_word_rep):
     if os.path.isfile(os.path.join(path_to_word_rep, path_to_weights)):
         return os.path.join(path_to_word_rep, path_to_weights)
 
-    model = downloader.load(GLOVE_TWITTER_PATH if model == 'glove' else WORD_2_VEC_PATH)
+    model = downloader.load(path)
     model.save(os.path.join(path_to_word_rep, path_to_weights))
 
     return os.path.join(path_to_word_rep, path_to_weights)
@@ -51,6 +59,9 @@ def break_file_to_sentences(file_path):
                 continue
 
             word_tagged = line.split('\t')
+
+            if len(word_tagged) == 1:
+                word_tagged = line.split(' ')
 
             if len(word_tagged) == 1:
                 list_of_words.append(word_tagged[0])
@@ -80,6 +91,8 @@ def get_label(file_path):
                 continue
 
             word_tagged = line.split('\t')
+            if len(word_tagged) == 1:
+                word_tagged = line.split(' ')
             try:
                 _, tag = word_tagged
             except:
@@ -98,7 +111,8 @@ def find_word_rep(word, model):
     word representation.
     :Note: You can add more rules if you find it useful
     """
-    word = word.lower()
+    ps = PorterStemmer()
+    # word = ps.stem(word)
 
     if word in model.key_to_index:
         return model[word]
@@ -225,7 +239,7 @@ def find_word_rep(word, model):
     return None
 
 
-def convert_sentence_presentation_to_mean(sentence, model, window=3, weight_word='weighted', use_pos_embeded=False):
+def convert_sentence_presentation_to_mean(sentence, model, window=7, weight_word='weighted', use_pos_embeded=False):
     """
     :param use_pos_embeded: if position will be represented in the vector
     :param weight_word: in which why to weight the mean
@@ -235,7 +249,7 @@ def convert_sentence_presentation_to_mean(sentence, model, window=3, weight_word
     :return: np array list of size lxd, when l the sentence length and d is the embedded word presentation length.
     The word vector presentation in the returning array will be created with the mean of vectors inside the window.
     """
-
+    count = 0
     rep_matrix = []
     # append start and end tokens
     sentence.insert(0, '*')
@@ -260,7 +274,7 @@ def convert_sentence_presentation_to_mean(sentence, model, window=3, weight_word
             weight_word_dict = {w: 1 for w in related_words}
         elif weight_word == 'weighted':
             # hyperparameter
-            curr_word_weight = 0.9
+            curr_word_weight = 0.5
             other_word_weight = (1 - curr_word_weight) / (len(related_words) - 1)
             for w in related_words:
                 if w == word:
@@ -276,6 +290,7 @@ def convert_sentence_presentation_to_mean(sentence, model, window=3, weight_word
 
             # if not a single representation found place a rare word
             if rep is None:
+                count += 1
                 rep = model['nonsense']
 
             num_of_founded_rep += 1
@@ -287,6 +302,7 @@ def convert_sentence_presentation_to_mean(sentence, model, window=3, weight_word
         rep_matrix.append(vec)
 
     return np.stack(rep_matrix)
+
 
 def convert_sentence_presentation_to_concatenation(sentence, model, window=1, use_pos_embeded=False):
     """
@@ -310,7 +326,7 @@ def convert_sentence_presentation_to_concatenation(sentence, model, window=1, us
 
     for pos, word in enumerate(sentence):
         # start and end token
-        if pos < window or pos > l - window - 1: #pos == l - 1:
+        if pos < window or pos > l - window - 1:  # pos == l - 1:
             continue
         related_words = []
         for i in range(pos - window, pos + window + 1):
