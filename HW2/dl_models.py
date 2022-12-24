@@ -11,8 +11,10 @@ class hw2_part2_model(nn.Module):
         super(hw2_part2_model, self).__init__()
         self.fc = nn.Sequential(nn.Linear(input_size, int(input_size / 2)),
                                 nn.ReLU(),
+                                nn.Dropout(p=0.3),
                                 nn.Linear(int(input_size / 2), int(input_size / 4)),
                                 nn.ReLU(),
+                                nn.Dropout(p=0.3),
                                 nn.Linear(int(input_size / 4), int(input_size / 4)),
                                 nn.ReLU(),
                                 nn.Dropout(p=0.3),
@@ -25,7 +27,6 @@ class hw2_part2_model(nn.Module):
                                 nn.ReLU(),
                                 nn.Dropout(p=0.3),
                                 nn.Linear(int(input_size / 8), output_size),
-                                nn.ReLU()
                                 )
 
     def forward(self, input):

@@ -15,22 +15,33 @@ class LSTMDataset(Dataset):
     def __getitem__(self, idx):
         return self.sentences[idx], self.labels[idx], self.sen_len[idx]
 
+class LSTMDatasetTest(Dataset):
+    def __init__(self, sentences, sen_len):
+        self.sentences = sentences
+        self.sen_len = sen_len
+
+    def __len__(self):
+        return self.sentences.shape[0]
+
+    def __getitem__(self, idx):
+        return self.sentences[idx], self.sen_len[idx]
+
 
 class LSTMNet(torch.nn.Module):
-    def __init__(self, input_size=200, hidden_size=100, num_layers=2, output_size=2):
+    def __init__(self, input_size=200, hidden_size=100, num_layers=1, output_size=2):
         super(LSTMNet, self).__init__()
         self.lstm = nn.LSTM(input_size=input_size,
                                   hidden_size=hidden_size,
                                   num_layers=num_layers,
                                   batch_first=True,
-                                  dropout=0.35,
-                                  bidirectional=True
+                                  dropout=0.2,
+                                  bidirectional=False
                                   )
         self.classifier = nn.Sequential(nn.ReLU(),
-                                        nn.Linear(2*hidden_size, hidden_size),
+                                        nn.Linear(hidden_size, hidden_size),
                                         nn.ReLU(),
-                                        nn.Dropout(p=0.3),
-                                        nn.Linear(hidden_size, output_size),
+                                        nn.Dropout(p=0.2),
+                                        nn.Linear(hidden_size, output_size)
                                         )
         self.hidden_size = hidden_size
         self.input_size = input_size

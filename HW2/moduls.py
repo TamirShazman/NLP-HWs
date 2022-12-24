@@ -77,13 +77,8 @@ def dl_train(model, train_load, test_load, epochs, loss_f, optimizer, model_file
     total_start_time = time.perf_counter()
 
     # save best model
-    best_loss = 100
-
-    # Early stopping
-    last_loss = 100
-    patience = 50
-    triggertimes = 0
-    stop_training = False
+    best_pred = None
+    best_f1 = 0
 
     # breakpoint()
     for epoch in range(epochs + 1):
@@ -163,29 +158,14 @@ def dl_train(model, train_load, test_load, epochs, loss_f, optimizer, model_file
         print("Total time is: {}".format(time.perf_counter() - total_start_time))
         display_progress(train_loss, test_loss, train_f1, test_f1, epoch)
 
-        # # save the model every 5 epochs
-        # if (epoch + 1) % 5 == 0 or epoch == epochs-1:
-        # torch.save(model.state_dict(), model_file_name + '.pkl')
-        #
-        # if current_loss < best_loss:
-        #     best_loss = current_loss
-        #     torch.save({
-        #         'epoch': epoch,
-        #         'model_state_dict': model.state_dict(),
-        #         'optimizer_state_dict': optimizer.state_dict(),
-        #         'loss': current_loss}, model_file_name + '.pkl')
-        # elif stop_training:
-        #     torch.save({
-        #         'epoch': epoch,
-        #         'model_state_dict': model.state_dict(),
-        #         'optimizer_state_dict': optimizer.state_dict(),
-        #         'loss': current_loss}, model_file_name + '.pkl')
-        #     break
+        if best_f1 < test_f1[-1]:
+            best_pred = preds
+            best_f1 = test_f1[-1]
 
         loss = (train_loss, test_loss)
         accuracy = (train_accuracy, test_accuracy)
 
-    return predictions, loss, accuracy
+    return best_pred, loss, accuracy
 
 
 def display_progress(train_loss, test_loss, train_accuracy, test_accuracy, epoch=None):
@@ -216,11 +196,11 @@ def dl_prediction(x_train, y_train, x_dev, y_dev, input_size):
 
     # train model
     model = hw2_part2_model(input_size=input_size).to(device)
-    epochs = 30
+    epochs = 10
     lr = 0.001
 
-    criterion = nn.CrossEntropyLoss()
-    # criterion = FocalLoss(gamma=2., alpha=0.25)
+    # criterion = nn.CrossEntropyLoss()
+    criterion = FocalLoss(gamma=2., alpha=0.25)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     model_file_name = 'hw2_part2'
@@ -242,11 +222,11 @@ def lstm_prediction(train_ds, test_ds, input_size):
 
     # train model
     model = LSTMNet(input_size=input_size).to(device)
-    epochs = 30
+    epochs = 10
     lr = 0.01
 
     # criterion = nn.CrossEntropyLoss()
-    criterion = FocalLoss(gamma=5., alpha=0.1)
+    criterion = FocalLoss(gamma=2, alpha=0.5)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     model_file_name = 'hw2_part2'
@@ -272,13 +252,8 @@ def lstm_train(model, train_load, test_load, epochs, loss_f, optimizer, model_fi
     total_start_time = time.perf_counter()
 
     # save best model
-    best_loss = 100
-
-    # Early stopping
-    last_loss = 100
-    patience = 50
-    triggertimes = 0
-    stop_training = False
+    best_pred = None
+    best_f1 = 0
 
     # breakpoint()
     for epoch in range(epochs + 1):
@@ -297,14 +272,15 @@ def lstm_train(model, train_load, test_load, epochs, loss_f, optimizer, model_fi
             sen_lens = sen_lens.to(device)
 
             # forward pass
+            # loss = torch.zeros(len(labels)).to(device)
             loss = 0
-            for x, y, sen_len in zip(X_s, labels, sen_lens):
+            for i, (x, y, sen_len) in enumerate(zip(X_s, labels, sen_lens)):
                 x = x[:sen_len]
                 y = y[:sen_len]
                 output = model(x)
 
+                # loss[i] = loss_f(output, y)
                 loss += loss_f(output, y)
-
                 # get accuracy
                 output = output.detach().cpu().numpy()
                 y = y.detach().cpu().numpy()
@@ -315,6 +291,7 @@ def lstm_train(model, train_load, test_load, epochs, loss_f, optimizer, model_fi
                 y_s.extend(y)
                 preds.extend(predicted)
 
+            # loss = loss.mean()
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -360,7 +337,7 @@ def lstm_train(model, train_load, test_load, epochs, loss_f, optimizer, model_fi
                     preds.extend(predicted)
                     y_s.extend(y)
 
-            epoch_test_loss.append(loss.cpu().item())
+            epoch_test_loss.append(loss.detach().cpu().numpy())
 
         test_loss.append(sum(epoch_test_loss) / len(epoch_test_loss))
         test_accuracy.append((test_correct / test_total))
@@ -371,7 +348,11 @@ def lstm_train(model, train_load, test_load, epochs, loss_f, optimizer, model_fi
         print("Total time is: {}".format(time.perf_counter() - total_start_time))
         display_progress(train_loss, test_loss, train_f1, test_f1, epoch)
 
+        if best_f1 < test_f1[-1]:
+            best_pred = preds
+            best_f1 = test_f1[-1]
+            torch.save(model.state_dict(), "weights/best_LSTM.pt")
         loss = (train_loss, test_loss)
         accuracy = (train_accuracy, test_accuracy)
 
-    return predictions, loss, accuracy
+    return best_pred, loss, accuracy

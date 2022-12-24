@@ -2,6 +2,7 @@ from gensim.models import KeyedVectors
 import torch
 import copy
 from sklearn.model_selection import KFold
+from sklearn.metrics import f1_score
 
 from preprocessing import get_label, download_model, break_file_to_sentences, find_word_rep
 from LSTM_model import LSTMDataset
@@ -30,17 +31,17 @@ def stack_sen_label(model, sentences, labels):
                 y.append(labels[counter])
                 counter += 1
             else:
-                y.append(-1)
+                y.append(0)
         final_x.append(x)
         final_y.append(y)
     return torch.tensor(final_x), torch.tensor(final_y), torch.tensor(sentences_len)
 
 def main():
-    train_path = 'data/train_new.tagged'
+    train_path = 'data/train.tagged'
     test_path = 'data/dev.tagged'
     path_to_word_rep = 'word_rep/'
 
-    model_path = download_model('glove', path_to_word_rep)
+    model_path = download_model('word2vec', path_to_word_rep)
     model = KeyedVectors.load(model_path)
 
     # create training dataset
@@ -51,8 +52,8 @@ def main():
 
     # create training dataset
     sentences = break_file_to_sentences(test_path)
-    y = get_label(test_path)
-    X, y, sen_len = stack_sen_label(model, sentences, y)
+    y_test = get_label(test_path)
+    X, y, sen_len = stack_sen_label(model, sentences, y_test)
     test_dataset = LSTMDataset(X, y, sen_len)
 
     # kf = KFold(n_splits=2, random_state=None, shuffle=False)
@@ -62,7 +63,8 @@ def main():
     #     sen_len_train, sen_len_test = sen_len[train_index], sen_len[test_index]
     #     train_dataset = LSTMDataset(X_train, Y_train, sen_len_train)
     #     test_dataset = LSTMDataset(X_test, Y_test, sen_len_test)
-    lstm_prediction(train_dataset, test_dataset, 200)
+    pred = lstm_prediction(train_dataset, test_dataset, 300)
+    print(f"The F1: score is :{f1_score(pred, y_test)}")
 
 
 if __name__ == '__main__':
