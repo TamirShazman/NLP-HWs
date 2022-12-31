@@ -29,13 +29,13 @@ class DependencyParser(nn.Module):
         Y1 = lstm_out.unsqueeze(1)
         X2 = X1.repeat(lstm_out.shape[0], 1, 1)
         Y2 = Y1.repeat(1, lstm_out.shape[0], 1)
-        Z = torch.cat([X2, Y2], -1)
+        Z = torch.cat([Y2, X2], -1)
         lstm_out_combi = Z.view(-1, Z.shape[-1])
         #
         score_mat_self_loop = self.edge_scorer(lstm_out_combi).view((lstm_out.shape[0], lstm_out.shape[0]))
-        mask = torch.ones_like(score_mat_self_loop).fill_diagonal_(0)
+        mask = torch.ones_like(score_mat_self_loop).fill_diagonal_(10000)
 
-        score_mat = score_mat_self_loop * mask
+        score_mat = score_mat_self_loop - mask
         loss = None
 
         if true_tree_heads is not None:
@@ -43,4 +43,8 @@ class DependencyParser(nn.Module):
             #print("inside")
            # print(log_softmax_score[1:], true_tree_heads[1:])
             loss = self.loss_function(log_softmax_score[1:], true_tree_heads[1:]) # remove root
-        return loss, score_mat[1:,1:]
+
+        pred_score_mat = score_mat.T.fill_diagonal_(0)
+        pred_score_mat[:,0] = 0
+
+        return loss, pred_score_mat

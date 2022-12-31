@@ -31,6 +31,10 @@ def training(training_ds, val_ds, idx2word_sen, idx2word_pos, w_embedding_dim = 
 
 def train_epoch(model, device, optimizer, training_dl, val_dl):
     for phase in ["train", "val"]:
+        pred_trees = []
+        gt_trees = []
+        total_loss = []
+
         if phase == "train":
             model.train(True)
         else:
@@ -39,8 +43,7 @@ def train_epoch(model, device, optimizer, training_dl, val_dl):
         dl  = training_dl if phase == "train" else val_dl
         t_bar = tqdm(dl)
         for sens, poss, s_lens, true_trees in t_bar:
-            uas = 0
-            losses = 0.
+            batch_loss = 0.
             # load all batch to device
             sens = sens.to(device)
             poss = poss.to(device)
@@ -48,8 +51,6 @@ def train_epoch(model, device, optimizer, training_dl, val_dl):
             true_trees = true_trees.to(device)
 
             if phase == "train":
-                train_pred_trees = []
-                train_gt_trees = []
                 # split batch
                 for sen, pos, s_len, true_tree in zip(sens, poss, s_lens, true_trees):
                     # remove padding
@@ -58,23 +59,22 @@ def train_epoch(model, device, optimizer, training_dl, val_dl):
                     true_tree = true_tree[:s_len]
                     loss, score_mat = model(sen, pos, true_tree)
                     #print(score_mat.shape, s_len.detach().cpu().numpy() - 1)
-                    losses = losses + loss
-                    pred_tree, _ = decode_mst(score_mat.detach().cpu().numpy(), s_len.detach().cpu().numpy() - 1, has_labels=False)
-                    train_pred_trees.extend(pred_tree)
-                    train_gt_trees.extend(true_tree.detach().cpu().numpy().tolist()[1:])
+                    batch_loss = batch_loss + loss
+                    pred_tree, _ = decode_mst(score_mat.detach().cpu().numpy(), s_len.detach().cpu().numpy() , has_labels=False)
+                    pred_trees.extend(pred_tree[1:])
+                    gt_trees.extend(true_tree.detach().cpu().numpy().tolist()[1:])
 
 
-                batch_loss = losses * (1 / s_lens.shape[0])
-                uas = calculate_UAS(train_pred_trees, train_gt_trees)
+                total_loss.append(batch_loss.detach().cpu().numpy().tolist())
+                batch_loss = batch_loss * (1 / s_lens.shape[0])
+                uas = calculate_UAS(pred_trees, gt_trees)
                 batch_loss.backward()
                 optimizer.step()
                 optimizer.zero_grad()
 
             else:
                 with torch.no_grad():
-                    losses = 0.
-                    val_pred_trees = []
-                    val_gt_trees = []
+                    batch_loss = 0.
                     # split batch
                     for sen, pos, s_len, true_tree in zip(sens, poss, s_lens, true_trees):
                         # remove padding
@@ -82,12 +82,13 @@ def train_epoch(model, device, optimizer, training_dl, val_dl):
                         pos = pos[:s_len]
                         true_tree = true_tree[:s_len]
                         loss, score_mat = model(sen, pos, true_tree)
-                        losses = losses + loss
-                        pred_tree, _ = decode_mst(score_mat.detach().cpu().numpy(), s_len.detach().cpu().numpy() - 1, has_labels=False)
-                        val_pred_trees.extend(pred_tree)
-                        val_gt_trees.extend(true_tree.detach().cpu().numpy().tolist()[1:])
-                batch_loss = losses * (1 / s_lens.shape[0])
-                uas = calculate_UAS(val_pred_trees, val_gt_trees)
-            t_bar.set_description(f"{phase}, loss: {batch_loss:.2f} UAS: {uas:.2f}")
+                        batch_loss = batch_loss + loss
+                        pred_tree, _ = decode_mst(score_mat.detach().cpu().numpy(), s_len.detach().cpu().numpy() , has_labels=False)
+                        pred_trees.extend(pred_tree[1:])
+                        gt_trees.extend(true_tree.detach().cpu().numpy().tolist()[1:])
+                total_loss.append(batch_loss.detach().cpu().numpy().tolist())
+                uas = calculate_UAS(pred_trees, gt_trees)
+
+            t_bar.set_description(f"{phase}, loss: {sum(total_loss) / len(total_loss):.2f} UAS: {uas:.2f}")
 
     return uas

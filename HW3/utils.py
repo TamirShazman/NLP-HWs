@@ -112,7 +112,7 @@ def padding_(sentences, seq_len):
 def calculate_UAS(pred_tree, gt_tree):
     assert len(pred_tree) == len(gt_tree), "Predicted tree has to be in the same length of the ground truth tree"
     total = len(pred_tree)
-    correct = sum([1 for i, val in enumerate(pred_tree) if (val + 1) == gt_tree[i]])
+    correct = sum([1 for i, val in enumerate(pred_tree) if (val) == gt_tree[i]])
     return correct / total
 
 class ParserDataSet(Dataset):
