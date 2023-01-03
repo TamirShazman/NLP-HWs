@@ -4,8 +4,30 @@ import torch
 from tqdm import tqdm
 from chu_liu_edmonds import decode_mst
 from utils import calculate_UAS
+import matplotlib.pyplot as plt
 
-def training(training_ds, val_ds, idx2word_sen, idx2word_pos, w_embedding_dim = 30, p_embedding_dim = 30, hidden_dim = 50, batch_size=64, epochs=20):
+
+def display_progress(train_loss, test_loss, train_uas, test_uas, epoch=None):
+    fig, ax = plt.subplots(ncols=2, nrows=1, figsize=(16, 4))
+    ax[0].plot(train_loss, label="train")
+    ax[0].plot(test_loss, label="test")
+    ax[0].legend()
+    if epoch is not None:
+        ax[0].set_title("Model NLL Loss - Epoch {}".format(epoch))
+    else:
+        ax[0].set_title("Model NLL Loss")
+
+    ax[1].plot(train_uas, label="train")
+    ax[1].plot(test_uas, label="test")
+    ax[1].legend()
+    if epoch is not None:
+        ax[1].set_title("Model UAS - Epoch {}".format(epoch))
+    else:
+        ax[1].set_title("Model UAS")
+    plt.show()
+
+
+def training(training_ds, val_ds, idx2word_sen, idx2word_pos, w_embedding_dim = 30, p_embedding_dim = 30, hidden_dim = 50, batch_size=64, epochs=20, early_stop=3):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     w_vocab_size = len(idx2word_sen)  # -2 because [UNK], [PAD]
@@ -15,21 +37,44 @@ def training(training_ds, val_ds, idx2word_sen, idx2word_pos, w_embedding_dim = 
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
 
-    training_dl = DataLoader(training_ds, batch_size=batch_size)
+    training_dl = DataLoader(training_ds, batch_size=batch_size, shuffle=True)
     val_dl = DataLoader(val_ds, batch_size=batch_size)
 
     best_uas = 0
     best_epoch = None
+    train_val_loss_epochs = {"train": [], "val": []}
+    train_val_uas_epochs = {"train": [], "val": []}
     for epoch in range(epochs):
         print(f"\n -- Epoch {epoch} --")
-        uas = train_epoch(model, device, optimizer, training_dl, val_dl)
-        if uas > best_uas:
-            best_uas = uas
+        train_val_loss, train_val_uas = train_epoch(model, device, optimizer, training_dl, val_dl)
+        if train_val_uas[1] > best_uas:
+            best_uas = train_val_uas[1]
             best_epoch = epoch
+
+        train_val_loss_epochs['train'].append(train_val_loss[0])
+        train_val_loss_epochs['val'].append(train_val_loss[1])
+        train_val_uas_epochs['train'].append(train_val_uas[0])
+        train_val_uas_epochs['val'].append(train_val_uas[1])
+
+        if epoch - best_epoch >= early_stop:
+            print(f"Early stop, best UAS on validation: {best_uas:.2f}, in epoch: {best_epoch}")
+            break
+
+    display_progress(train_val_loss_epochs["train"],
+                     train_val_loss_epochs["val"],
+                     train_val_uas_epochs["train"],
+                     train_val_uas_epochs["val"],
+                     best_epoch
+                     )
+
+
 
 
 
 def train_epoch(model, device, optimizer, training_dl, val_dl):
+    train_val_loss = []
+    train_val_uas = []
+
     for phase in ["train", "val"]:
         pred_trees = []
         gt_trees = []
@@ -91,4 +136,7 @@ def train_epoch(model, device, optimizer, training_dl, val_dl):
 
             t_bar.set_description(f"{phase}, loss: {sum(total_loss) / len(total_loss):.2f} UAS: {uas:.2f}")
 
-    return uas
+        train_val_loss.append(sum(total_loss) / len(total_loss))
+        train_val_uas.append(calculate_UAS(pred_trees, gt_trees))
+
+    return train_val_loss,train_val_uas
