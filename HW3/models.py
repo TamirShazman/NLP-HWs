@@ -1,6 +1,7 @@
 import torch.nn as nn
-from torch import cat, combinations
+from torch import cat
 import torch
+import math
 
 class DependencyParser(nn.Module):
     def __init__(self, w_vocab_size, p_vocab_size, w_embedding_dim=30, p_embedding_dim=30, hidden_dim=50):
@@ -33,9 +34,8 @@ class DependencyParser(nn.Module):
         lstm_out_combi = Z.view(-1, Z.shape[-1])
         #
         score_mat_self_loop = self.edge_scorer(lstm_out_combi).view((lstm_out.shape[0], lstm_out.shape[0]))
-        mask = torch.ones_like(score_mat_self_loop).fill_diagonal_(10000)
-
-        score_mat = score_mat_self_loop - mask
+        score_mat = score_mat_self_loop.fill_diagonal_(-math.inf)
+ 
         loss = None
 
         if true_tree_heads is not None:
