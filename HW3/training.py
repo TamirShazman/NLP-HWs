@@ -5,6 +5,8 @@ from tqdm import tqdm
 from chu_liu_edmonds import decode_mst
 from utils import calculate_UAS
 import matplotlib.pyplot as plt
+from sklearn.model_selection import KFold
+from utils import *
 
 
 def display_progress(train_loss, test_loss, train_uas, test_uas, epoch=None):
@@ -27,7 +29,18 @@ def display_progress(train_loss, test_loss, train_uas, test_uas, epoch=None):
     plt.show()
 
 
-def training(training_ds, val_ds, idx2word_sen, idx2word_pos, w_embedding_dim = 30, p_embedding_dim = 30, hidden_dim = 50, batch_size=64, epochs=20, early_stop=3):
+def training(training_ds,
+             val_ds,
+             idx2word_sen,
+             idx2word_pos,
+             w_embedding_dim = 30,
+             p_embedding_dim = 30,
+             hidden_dim = 50,
+             batch_size=64,
+             epochs=50,
+             early_stop=3,
+             display_graph=False):
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     w_vocab_size = len(idx2word_sen)  # -2 because [UNK], [PAD]
@@ -60,12 +73,13 @@ def training(training_ds, val_ds, idx2word_sen, idx2word_pos, w_embedding_dim = 
             print(f"Early stop, best UAS on validation: {best_uas:.2f}, in epoch: {best_epoch}")
             break
 
-    display_progress(train_val_loss_epochs["train"],
-                     train_val_loss_epochs["val"],
-                     train_val_uas_epochs["train"],
-                     train_val_uas_epochs["val"],
-                     best_epoch
-                     )
+    if display_graph:
+        display_progress(train_val_loss_epochs["train"],
+                         train_val_loss_epochs["val"],
+                         train_val_uas_epochs["train"],
+                         train_val_uas_epochs["val"],
+                         best_epoch
+                         )
 
 
 
@@ -140,3 +154,24 @@ def train_epoch(model, device, optimizer, training_dl, val_dl):
         train_val_uas.append(calculate_UAS(pred_trees, gt_trees))
 
     return train_val_loss,train_val_uas
+
+
+def cross_validation(**kwargs):
+    uas_val = []
+    kf = KFold(n_splits=5, random_state=42, shuffle=True)
+    for i, (train_index, test_index) in enumerate(kf.split(kwargs['x_s_p'])):
+        # get training data
+        training_x_s_p = kwargs['x_s_p'][train_index]
+        training_x_pos_p = kwargs['x_pos_p'][train_index]
+        training_len = kwargs['len'][train_index]
+        training_true_tree_p = kwargs['true_tree_p'][train_index]
+        training_ds = ParserDataSet(training_x_s_p, training_x_pos_p, training_len, training_true_tree_p)
+
+        # get validation data
+        val_x_s_p = kwargs['x_s_p'][test_index]
+        val_x_pos_p = kwargs['x_pos_p'][test_index]
+        val_len = kwargs['len'][test_index]
+        val_true_tree_p = kwargs['true_tree_p'][test_index]
+        val_ds = ParserDataSet(val_x_s_p, val_x_pos_p, val_len, val_true_tree_p)
+
+

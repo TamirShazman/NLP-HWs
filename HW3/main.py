@@ -33,7 +33,7 @@ def main():
     val_ds = ParserDataSet(val_x_s_p, val_x_pos_p, val_len, val_true_tree_p)
 
     # train
-    training(training_ds, val_ds, idx2word_sen, idx2word_pos)
+    training(training_ds, val_ds, idx2word_sen, idx2word_pos, w_embedding_dim=200, p_embedding_dim=50, hidden_dim=80)
 
 if __name__ == "__main__":
     main()

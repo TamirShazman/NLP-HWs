@@ -11,7 +11,7 @@ class DependencyParser(nn.Module):
         self.embedding_dim = w_embedding_dim + p_embedding_dim
         self.word_embedding = nn.Embedding(w_vocab_size, w_embedding_dim)
         self.pos_embedding = nn.Embedding(p_vocab_size, p_embedding_dim)
-        self.encoder = nn.LSTM(self.embedding_dim, hidden_dim, batch_first=True, bidirectional=True)
+        self.encoder = nn.LSTM(self.embedding_dim, hidden_dim, batch_first=True, bidirectional=True, num_layers=2)
         self.edge_scorer = nn.Sequential(nn.Linear(4*hidden_dim, hidden_dim),
                                          nn.Tanh(),
                                          nn.Linear(hidden_dim, 1)
@@ -35,7 +35,7 @@ class DependencyParser(nn.Module):
         #
         score_mat_self_loop = self.edge_scorer(lstm_out_combi).view((lstm_out.shape[0], lstm_out.shape[0]))
         score_mat = score_mat_self_loop.fill_diagonal_(-math.inf)
- 
+
         loss = None
 
         if true_tree_heads is not None:
