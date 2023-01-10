@@ -56,7 +56,7 @@ def get_head_token(file_path):
         s_t = [-1]
         for w in s.split('\n'):
             t = w.split('\t')[6]
-            s_t.append(int(t)) # -1 for indexing
+            s_t.append(int(t))
         head_token.append(s_t)
     return head_token
 
@@ -127,3 +127,15 @@ class ParserDataSet(Dataset):
 
     def __getitem__(self, item):
         return self.sentences[item], self.pos[item], self.s_lens[item],self.true_tree[item] if self.true_tree is not None else None
+
+class CBOWDataSet(Dataset):
+    def __init__(self, sentences, sentences_lens, y_s):
+        self.sentences = sentences
+        self.s_lens = sentences_lens
+        self.y_s = y_s
+
+    def __len__(self):
+        return self.sentences.shape[0]
+
+    def __getitem__(self, item):
+        return self.sentences[item], self.y_s[item]  ,self.s_lens[item]
