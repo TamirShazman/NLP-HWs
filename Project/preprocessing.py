@@ -112,10 +112,12 @@ class Preprocessor:
 
     def preprocess(self):
         train_source_list, train_target_list = self.clean_text(self.train_path)
+        train_pre_ds = [{'de': german, 'en': english} for german, english in zip(train_source_list, train_target_list)]
         validation_source_list, validation_target_list = self.clean_text(self.validation_path)
+        validation_pre_ds = [{'de': german, 'en': english} for german, english in zip(validation_source_list, validation_target_list)]
 
-        train_ds = Dataset.from_pandas(pd.DataFrame({'text': train_source_list, 'label': train_target_list}))
-        validation_ds = Dataset.from_pandas(pd.DataFrame({'text': validation_source_list, 'label': validation_target_list}))
+        train_ds = Dataset.from_pandas(pd.DataFrame({'id': list(range(len(train_source_list))), 'translation': train_pre_ds}))
+        validation_ds = Dataset.from_pandas(pd.DataFrame({'id': list(range(len(validation_source_list))), 'translation': validation_pre_ds}))
 
         tokenizer = self.tokenizer
         # %%
@@ -123,8 +125,8 @@ class Preprocessor:
         max_target_length = 128
 
         def preprocess_function(dataset):
-            source = [text for text in dataset['text']]
-            target = [label for label in dataset['label']]
+            source = [text['de'] for text in dataset['translation']]
+            target = [label['en'] for label in dataset['translation']]
             model_inputs = tokenizer(source, max_length=max_input_length, truncation=True)
 
             # Setup the tokenizer for targets
@@ -134,7 +136,8 @@ class Preprocessor:
             model_inputs["labels"] = labels["input_ids"]
             return model_inputs
 
-        tokenized_train = train_ds.map(preprocess_function, batched=True)
-        tokenized_validation = train_ds.map(preprocess_function, batched=True)
+        tokenized_train = train_ds.map(preprocess_function, batched=True) #.remove_columns(['text', 'label'])
+
+        tokenized_validation = validation_ds.map(preprocess_function, batched=True)
 
         return {"train": tokenized_train, "validation": tokenized_validation}
