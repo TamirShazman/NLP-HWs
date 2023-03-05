@@ -5,6 +5,9 @@ import re
 from datasets import Dataset
 from transformers import AutoTokenizer
 
+max_input_length = 128
+max_target_length = 128
+
 
 class Preprocessor:
     def __init__(self, train_path, validation_path, tokenizer):
@@ -121,8 +124,7 @@ class Preprocessor:
 
         tokenizer = self.tokenizer
         # %%
-        max_input_length = 128
-        max_target_length = 128
+
 
         def preprocess_function(dataset):
             source = [text['de'] for text in dataset['translation']]
