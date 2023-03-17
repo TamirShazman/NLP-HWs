@@ -7,8 +7,8 @@ import numpy as np
 
 
 def main():
-    run_names = 'standart'
-    num_epochs = 100
+    run_names = 't5-small'
+    num_epochs = 50
 
     # create a tokenizer
     tokenizer = T5Tokenizer.from_pretrained("t5-small")
@@ -23,8 +23,8 @@ def main():
     model = AutoModelForSeq2SeqLM.from_pretrained("t5-small")
 
     # config the model
-    model.config.max_length = max_target_length
-    model.config.do_sample = True
+    model.config.max_length = 300
+    model.config.early_stopping = True
     model.config.num_beams = 4
 
 
@@ -65,14 +65,15 @@ def main():
         output_dir="runs_outputs",
         evaluation_strategy="epoch",
         run_name=run_names,
-        gradient_accumulation_steps=16,
-        learning_rate=1e-3,
-        per_device_train_batch_size=2,
-        per_device_eval_batch_size=2,
+        gradient_accumulation_steps=2,
+        learning_rate=4e-3,
+        per_device_train_batch_size=32,
+        per_device_eval_batch_size=32,
         weight_decay=0.01,
         save_total_limit=3,
         num_train_epochs=num_epochs,
         save_strategy='epoch',
+        #resume_from_checkpoint='/home/student/Desktop/Project/runs_outputs/checkpoint-1248',
         lr_scheduler_type='cosine',
         predict_with_generate=True,
         fp16=True,

@@ -129,11 +129,11 @@ class Preprocessor:
         def preprocess_function(dataset):
             source = [text['de'] for text in dataset['translation']]
             target = [label['en'] for label in dataset['translation']]
-            model_inputs = tokenizer(source, max_length=max_input_length, truncation=True)
+            model_inputs = tokenizer(source, return_tensors='np', max_length=max_input_length, truncation=True, padding=True)
 
             # Setup the tokenizer for targets
             with tokenizer.as_target_tokenizer():
-                labels = tokenizer(target, max_length=max_target_length, truncation=True)
+                labels = tokenizer(target, return_tensors='np', max_length=max_target_length, truncation=True, padding=True)
 
             model_inputs["labels"] = labels["input_ids"]
             return model_inputs
