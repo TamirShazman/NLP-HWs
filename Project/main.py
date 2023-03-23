@@ -7,11 +7,11 @@ import numpy as np
 
 
 def main():
-    run_names = 't5-small'
-    num_epochs = 50
+    run_names = 't5-base-overfit+graph'
+    num_epochs = 25
 
     # create a tokenizer
-    tokenizer = T5Tokenizer.from_pretrained("t5-small")
+    tokenizer = T5Tokenizer.from_pretrained("t5-base")
 
     #load dataset
     tokenized_dataset =Preprocessor(
@@ -20,7 +20,7 @@ def main():
                      tokenizer).preprocess()
 
     # create the model
-    model = AutoModelForSeq2SeqLM.from_pretrained("t5-small")
+    model = AutoModelForSeq2SeqLM.from_pretrained('t5-base')
 
     # config the model
     model.config.max_length = 300
@@ -65,21 +65,22 @@ def main():
         output_dir="runs_outputs",
         evaluation_strategy="epoch",
         run_name=run_names,
-        gradient_accumulation_steps=2,
-        learning_rate=4e-3,
-        per_device_train_batch_size=32,
-        per_device_eval_batch_size=32,
-        weight_decay=0.01,
-        save_total_limit=3,
+        gradient_accumulation_steps=32,
+        learning_rate=1e-4,
+        per_device_train_batch_size=2,
+        per_device_eval_batch_size=2,
+        weight_decay=0.00,
+        save_total_limit=5,
         num_train_epochs=num_epochs,
         save_strategy='epoch',
-        #resume_from_checkpoint='/home/student/Desktop/Project/runs_outputs/checkpoint-1248',
+        #resume_from_checkpoint='/home/student/Desktop/Project/runs_outputs/checkpoint-1092',
         lr_scheduler_type='cosine',
         predict_with_generate=True,
         fp16=True,
         load_best_model_at_end=True,
+        report_to="wandb",
         logging_strategy='epoch',
-        metric_for_best_model='bleu',
+        metric_for_best_model='bleu'
     )
 
     trainer = Seq2SeqTrainer(

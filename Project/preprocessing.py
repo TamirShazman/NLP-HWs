@@ -4,9 +4,10 @@ import string
 import re
 from datasets import Dataset
 from transformers import AutoTokenizer
+from project_evaluate import read_file
 
-max_input_length = 128
-max_target_length = 128
+max_input_length = 124
+max_target_length = 124
 
 
 class Preprocessor:
@@ -52,7 +53,7 @@ class Preprocessor:
             # ignored_punctuation = ignored_punctuation + '()'
         regex_cleaning = dict()
         regex_cleaning.update({'\n': ' '})
-        regex_cleaning.update({p: '' for p in string.punctuation if p not in ignored_punctuation})
+        # regex_cleaning.update({p: '' for p in string.punctuation if p not in ignored_punctuation})
         clean_text = tagged_text.translate(str.maketrans(regex_cleaning))
         # clean_text = tagged_text
         action_items = clean_text.split("SOURCE")
@@ -113,10 +114,39 @@ class Preprocessor:
             raise ("Does not conform to either either labeled or unlabeled format")
         print(pd.DataFrame.from_dict(interest_dict).describe())
 
+    def read_file(self, file_path):
+        file_en, file_de = [], []
+        with open(file_path, encoding='utf-8') as f:
+            cur_str, cur_list = '', []
+            for line in f.readlines():
+                line = line.strip()
+                if line == 'English:' or line == 'German:':
+                    if len(cur_str) > 0:
+                        cur_list.append(cur_str.strip())
+                        cur_str = ''
+                    if line == 'English:':
+                        cur_list = file_en
+                    else:
+                        cur_list = file_de
+                    continue
+                cur_str += line + ' '
+        if len(cur_str) > 0:
+            cur_list.append(cur_str)
+        file_de = ["translate German to English: " + entry for entry in file_de]
+        return file_en, file_de
+
     def preprocess(self):
-        train_source_list, train_target_list = self.clean_text(self.train_path)
+        """
+        creates tokenized train/val source and target lists
+        :return:
+        """
+        # train_source_list, train_target_list = self.clean_text(self.train_path)
+        train_target_list, train_source_list = self.read_file(self.train_path)
+        # train_source_list = ["translate German to English: " + entry for entry in train_source_list]
         train_pre_ds = [{'de': german, 'en': english} for german, english in zip(train_source_list, train_target_list)]
-        validation_source_list, validation_target_list = self.clean_text(self.validation_path)
+        # validation_source_list, validation_target_list = self.clean_text(self.validation_path)
+        validation_target_list, validation_source_list = self.read_file(self.validation_path)
+        # validation_source_list = ["translate German to English: " + entry for entry in validation_source_list]
         validation_pre_ds = [{'de': german, 'en': english} for german, english in zip(validation_source_list, validation_target_list)]
 
         train_ds = Dataset.from_pandas(pd.DataFrame({'id': list(range(len(train_source_list))), 'translation': train_pre_ds}))
