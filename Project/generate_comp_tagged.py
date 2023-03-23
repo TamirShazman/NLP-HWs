@@ -31,8 +31,15 @@ def make_sure_mod_root(file_path, new_path):
 
         if 'roots in' in line.lower():
             start_index_root = line.lower().index('roots in')
+        if 'lost modifiers are:' in line.lower():
+            start_index_mod = line.lower().index('lost modifiers are:')
         if 'modifiers in' in line.lower():
             start_index_mod = line.lower().index('modifiers in')
+        if 'modifier in' in line.lower():
+            start_index_mod = line.lower().index('modifier in')
+        if 'modifiers' in line.lower():
+            start_index_mod = line.lower().index('modifiers')
+
 
         if start_index_root is None and start_index_mod is not None:
             cut_from = start_index_mod
@@ -58,6 +65,16 @@ def make_sure_mod_root(file_path, new_path):
 
 
 def get_generate_comp_tagged(tokenizer, spacy_processor, file_path, write_path, model, generation_arg):
+    """
+    Create predictions and write to write path
+    :param tokenizer:
+    :param spacy_processor:
+    :param file_path:
+    :param write_path:
+    :param model:
+    :param generation_arg:
+    :return:
+    """
     assert not os.path.exists(write_path), 'Write file already exists'
 
     preprocessor = Preprocessor(
@@ -122,15 +139,15 @@ def get_generate_comp_tagged(tokenizer, spacy_processor, file_path, write_path, 
 
 
 def main():
-    generate_val = False
+    generate_val = True
     generate_comp = True
-    evaluate_val = False
+    evaluate_val = True
     val_path = 'data/val.unlabeled'
     evaluate_val_path = 'data/val.labeled'
-    temp_val_path = 'val_temp.labeled'
+    temp_val_path = 'tests/val_temp.labeled'
     val_write_path = 'val_337977045_316250877.labeled'
     comp_path = 'data/comp.unlabeled'
-    temp_comp_path = 'comp_temp.labeled'
+    temp_comp_path = 'tests/comp_temp.labeled'
     comp_write_path = 'comp_337977045_316250877.labeled'
     model_path = 'models_checkpoints/t5-base-3-19'
     spacy_processor = spacy.load('en_core_web_sm')
@@ -144,18 +161,21 @@ def main():
 
     model = AutoModelForSeq2SeqLM.from_pretrained(model_path)
 
-    print('Generate Validation Predictions:')
+
     if generate_val:
+        print('Generate Validation Predictions:')
         get_generate_comp_tagged(tokenizer=tokenizer, spacy_processor=spacy_processor, file_path=val_path, write_path=temp_val_path, model=model, generation_arg=generation_arg)
         make_sure_mod_root(temp_val_path, val_write_path)
 
-    print('Evaluate Validation Predictions:')
+
     if evaluate_val:
+        print('Evaluate Validation Predictions:')
         print('validation blue score:')
         calculate_score(val_write_path, evaluate_val_path)
 
-    print('Generate Comp Predictions:')
+
     if generate_comp:
+        print('Generate Comp Predictions:')
         get_generate_comp_tagged(tokenizer=tokenizer, spacy_processor=spacy_processor, file_path=comp_path, write_path=temp_comp_path, model=model, generation_arg=generation_arg)
         make_sure_mod_root(temp_comp_path, comp_write_path)
 
