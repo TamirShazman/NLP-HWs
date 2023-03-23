@@ -10,6 +10,53 @@ from preprocessing import Preprocessor
 from project_evaluate import calculate_score
 from inference import dependency_postprocessing
 
+def make_sure_mod_root(file_path, new_path):
+    with open(file_path, 'r') as file:
+        # read a list of lines into data
+        lines = file.readlines()
+
+    new_lines = []
+    skip_till_new_line = False
+    for line in lines:
+
+        if line == '\n':
+            skip_till_new_line = False
+
+        if skip_till_new_line:
+            continue
+
+        cut_from = None
+        start_index_root = None
+        start_index_mod = None
+
+        if 'roots in' in line.lower():
+            start_index_root = line.lower().index('roots in')
+        if 'modifiers in' in line.lower():
+            start_index_mod = line.lower().index('modifiers in')
+
+        if start_index_root is None and start_index_mod is not None:
+            cut_from = start_index_mod
+        elif start_index_root is not None and start_index_mod is None:
+            cut_from = start_index_root
+        elif start_index_root is not None and start_index_mod is not None:
+            cut_from = min(start_index_root, start_index_mod)
+
+        if cut_from is None:
+            new_lines.append(line)
+        else:
+            new_lines.append(line[:cut_from].strip())
+            skip_till_new_line = True
+
+    with open(new_path, 'w') as f:
+        for line in new_lines:
+            if not line.endswith('\n'):
+                f.write(f"{line}\n")
+            else:
+                f.write(line)
+
+        f.write('\n')
+
+
 def get_generate_comp_tagged(tokenizer, spacy_processor, file_path, write_path, model, generation_arg):
     assert not os.path.exists(write_path), 'Write file already exists'
 
@@ -80,8 +127,10 @@ def main():
     evaluate_val = False
     val_path = 'data/val.unlabeled'
     evaluate_val_path = 'data/val.labeled'
+    temp_val_path = 'val_temp.labeled'
     val_write_path = 'val_337977045_316250877.labeled'
     comp_path = 'data/comp.unlabeled'
+    temp_comp_path = 'comp_temp.labeled'
     comp_write_path = 'comp_337977045_316250877.labeled'
     model_path = 'models_checkpoints/t5-base-3-19'
     spacy_processor = spacy.load('en_core_web_sm')
@@ -97,7 +146,8 @@ def main():
 
     print('Generate Validation Predictions:')
     if generate_val:
-        get_generate_comp_tagged(tokenizer=tokenizer, spacy_processor=spacy_processor, file_path=val_path, write_path=val_write_path, model=model, generation_arg=generation_arg)
+        get_generate_comp_tagged(tokenizer=tokenizer, spacy_processor=spacy_processor, file_path=val_path, write_path=temp_val_path, model=model, generation_arg=generation_arg)
+        make_sure_mod_root(temp_val_path, val_write_path)
 
     print('Evaluate Validation Predictions:')
     if evaluate_val:
@@ -106,8 +156,8 @@ def main():
 
     print('Generate Comp Predictions:')
     if generate_comp:
-        get_generate_comp_tagged(tokenizer=tokenizer, spacy_processor=spacy_processor, file_path=comp_path, write_path=comp_write_path, model=model, generation_arg=generation_arg)
-
+        get_generate_comp_tagged(tokenizer=tokenizer, spacy_processor=spacy_processor, file_path=comp_path, write_path=temp_comp_path, model=model, generation_arg=generation_arg)
+        make_sure_mod_root(temp_comp_path, comp_write_path)
 
 if __name__ == '__main__':
     main()
